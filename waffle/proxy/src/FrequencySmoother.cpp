@@ -36,6 +36,12 @@ int FrequencySmoother::getMinFrequency() {
 	return accessTree.begin()->second;
 }
 
+
+std::string FrequencySmoother::getRUKey() {
+    std::lock_guard<std::mutex> lock(m_mutex_);
+    return accessTree.rbegin()->first;
+}
+
 std::string FrequencySmoother::getKeyWithMinFrequency() {
 	std::lock_guard<std::mutex> lock(m_mutex_);
 	return accessTree.begin()->first;
@@ -57,7 +63,11 @@ void FrequencySmoother::setFrequency(std::string key, int value) {
 
 void FrequencySmoother::removeKey(std::string key) {
 	std::lock_guard<std::mutex> lock(m_mutex_);
-	accessTree.erase({key, accessFreqs[key]});
+    removeKey_without_mutex(key);
+}
+void FrequencySmoother::removeKey_without_mutex(std::string key) {
+    accessTree.erase({key, accessFreqs[key]});
+    accessFreqs.erase(key);
 }
 
 void FrequencySmoother::addKey(std::string key) {

@@ -32,6 +32,7 @@ public:
 	std::vector<std::string> evictLRElementFromCache();
 	std::string getValueWithoutPositionChangeNew(std::string key, bool& isPresent);
 	std::mutex& getMutex();
+    bool removeKey(std::string key);
 };
 
 #endif

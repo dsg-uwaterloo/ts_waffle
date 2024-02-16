@@ -1,3 +1,7 @@
+#include <stdexcept>
+#include <iostream>
+#include <future>
+#include <assert.h>
 #include "redis.h"
 
     redis::redis(const std::string &host_name, int port){
@@ -49,10 +53,18 @@
         std::unordered_map<int, std::vector<std::string>> key_vectors;
 
         // Gather all relevant storage interface's by id and create vector for key batch
+        int count=0;
         for (const auto &key: keys) {
+            count++;
+            if (!key_exists(key) )
+            {
+                std::cout << "Key at "<<count<<" does not exist: " << key << std::endl;
+                throw std::runtime_error("Key does not exist");
+            }
             auto id = (std::hash<std::string>{}(std::string(key)) % clients.size());
             key_vectors[id].emplace_back(key);
         }
+
 
         for (auto it = key_vectors.begin(); it != key_vectors.end(); it++) {
              // std::cout << "Entering redis.cpp line " << __LINE__ << std::endl;
@@ -79,6 +91,7 @@
                 return_vector.push_back(nested_reply.as_string());
             }
         }
+        std::cout<<"Redis Server Size (get): "<<get_database_size()<<std::endl;
         return return_vector;
     }
 
@@ -88,12 +101,19 @@
 
         // Gather all relevant storage interface's by id and create vector for key batch
         int i = 0;
+        int count_dulicate=0;
         for (const auto &key: keys) {
+            //print if key exists
+            if (key_exists(key) )
+            {
+                count_dulicate++;
+            }
+
             auto id = (std::hash<std::string>{}(std::string(key)) % clients.size());
             key_value_vector_pairs[id].push_back(std::make_pair(key, values[i]));
             i++;
         }
-
+        std::cout << "Duplicate keys: " << count_dulicate << std::endl;
         for (auto it = key_value_vector_pairs.begin(); it != key_value_vector_pairs.end(); it++) {
             auto future = clients[it->first]->mset(it->second);
             futures.push(std::move(future));
@@ -112,6 +132,7 @@
                 throw std::runtime_error(reply.error());
             }
         }
+        std::cout<<"Redis Server Size (put): "<<get_database_size()<<std::endl;
     }
 
     void redis::delete_batch(const std::vector<std::string> &keys) {
@@ -129,4 +150,43 @@
 
         for (auto it = key_vectors.begin(); it != key_vectors.end(); it++)
             clients[it->first]->commit();
+
+        std::cout<<"Redis Server Size (delete): "<<get_database_size()<<std::endl;
     }
+    size_t redis::get_database_size() {
+        // Assuming you want to check the size of the first (or any specific) Redis instance.
+        if (clients.empty()) {
+            throw std::runtime_error("No Redis clients are connected.");
+        }
+
+        auto& client = clients.front(); // Get the first client or modify to select a specific one.
+        auto future = client->dbsize();
+        client->commit(); // Make sure to commit to send the command to the server.
+        auto reply = future.get(); // Wait for and get the reply.
+
+        if (reply.is_error()) {
+            throw std::runtime_error(reply.error());
+        }
+
+        // dbsize command returns the number of keys as an integer.
+        return reply.as_integer();
+    }
+bool redis::key_exists(const std::string &key) {
+    // Choose the appropriate client based on the key's hash, similar to how you do in get or put.
+    auto idx = (std::hash<std::string>{}(key) % clients.size());
+    auto& client = clients[idx];
+
+    // Use the exists command to check for the key.
+    auto future = client->exists({key});
+    client->commit(); // Ensure the command is sent to the server.
+    auto reply = future.get(); // Wait for and retrieve the response.
+
+    if (reply.is_error()) {
+        // Handle error appropriately, possibly re-throw or return false.
+        throw std::runtime_error(reply.error());
+    }
+
+    // The exists command returns the count of keys that exist.
+    return reply.as_integer() > 0;
+}
+

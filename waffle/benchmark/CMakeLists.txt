@@ -3,12 +3,12 @@ set(CLIENT_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../libclient/src)
 set(PROXY_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../proxy/src)
 set(SERVICE_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../service/src)
 set(BENCHMARK_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-
-include_directories(${STORAGE_INCLUDE} ${CLIENT_INCLUDE} ${PROXY_INCLUDE} ${BENCHMARK_INCLUDE} ${SERVICE_INCLUDE} )
+set(UTILS_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../utils)
+include_directories(${STORAGE_INCLUDE} ${CLIENT_INCLUDE} ${PROXY_INCLUDE} ${BENCHMARK_INCLUDE} ${SERVICE_INCLUDE} ${UTILS_INCLUDE})
 
 
 add_executable(proxy_benchmark
-        src/proxy_benchmark.cpp
+        src/TS_proxy_benchmark.cpp
 
         ../libclient/src/client.h
         ../libclient/src/proxy_client.cpp
@@ -57,7 +57,12 @@ add_executable(proxy_benchmark
         ../libstorage/src/redis.cpp
         #../libstorage/src/memcached.cpp
         #../libstorage/src/memcached.h
-        ../service/src/thrift_utils.h)
+        ../service/src/thrift_utils.h
+        ../utils/TS_value_master.h
+        ../utils/utils.h
+       ../utils/TS_key_master.h
+        ../utils/TS_search_master.h
+)
 add_dependencies(proxy_benchmark cpp_redis libcuckoo openssl_ep thrift_ep)
 target_link_libraries(proxy_benchmark
         ${THRIFTNB_LIBRARY}

@@ -6,6 +6,10 @@
 #include "thrift_server.h"
 #include "thrift_utils.h"
 
+#include "TS_value_master.h"
+#include "TS_key_master.h"
+
+
 #define HOST "127.0.0.1"
 #define PROXY_PORT 9090
 
@@ -48,12 +52,12 @@ void flush_thread(std::shared_ptr<proxy> proxy){
 }
 
 void usage() {
-    std::cout << "Waffle proxy:\n";
+    std::cout << "TS Waffle proxy:\n";
     // Network Parameters
     std::cout << "\t -h: Storage server host name\n";
     std::cout << "\t -p: Storage server port\n";
     std::cout << "\t -s: Storage server type (redis, rocksdb, memcached)\n";
-    std::cout << "\t -n: Storage server count\n";
+    std::cout << "\t -a: Storage server count\n";
     std::cout << "\t -z: Proxy server type\n";
     // Workload parameters
     std::cout << "\t -l: Workload file\n";
@@ -70,11 +74,9 @@ int main(int argc, char *argv[]) {
     int client_batch_size = 50;
     std::atomic<int> xput;
     std::atomic_init(&xput, 0);
-    int object_size_ = 1000;
 
     std::shared_ptr<proxy> proxy_ = std::make_shared<waffle_proxy>();
     int o;
-    std::string proxy_type_ = "waffle";
     while ((o = getopt(argc, argv, "h:p:s:n:v:b:c:t:o:d:z:q:l:m:r:y:f:a")) != -1) {
         switch (o) {
             case 'h':
@@ -83,13 +85,7 @@ int main(int argc, char *argv[]) {
             case 'p':
                 dynamic_cast<waffle_proxy&>(*proxy_).server_port_ = std::atoi(optarg);
                 break;
-            case 'f':
-                dynamic_cast<waffle_proxy&>(*proxy_).F = std::atoi(optarg);
-                break;
-            case 'd':
-                dynamic_cast<waffle_proxy&>(*proxy_).D = std::atoi(optarg);
-                break;
-            case 'n':
+            case 'a':
                 dynamic_cast<waffle_proxy&>(*proxy_).num_cores = std::atoi(optarg);
                 break;
             case 'c':
@@ -107,23 +103,33 @@ int main(int argc, char *argv[]) {
             case 'o':
                 dynamic_cast<waffle_proxy&>(*proxy_).output_location_ = std::string(optarg);
                 break;
-            case 'b':
-                dynamic_cast<waffle_proxy&>(*proxy_).B = std::atoi(optarg);
-                break;
-            case 'a':
-                proxy_type_ = std::string(optarg);
-                break;
             case 'q':
                 client_batch_size = std::atoi(optarg);
                 break;
-            case 'l':
-                dynamic_cast<waffle_proxy&>(*proxy_).trace_location_ = std::string(optarg);
-                break;
+//            case 'l':
+//                dynamic_cast<waffle_proxy&>(*proxy_).trace_location_ = std::string(optarg);
+//                break;
+//                //print information
             case 'y':
                 dynamic_cast<waffle_proxy&>(*proxy_).latency = true;
                 break;
+            case 'b':
+                dynamic_cast<waffle_proxy&>(*proxy_).B = std::atoi(optarg);
+                break;
             case 'r':
                 dynamic_cast<waffle_proxy&>(*proxy_).R = std::atoi(optarg);
+                break;
+            case 'f':
+                dynamic_cast<waffle_proxy&>(*proxy_).F = std::atoi(optarg);
+                break;
+            case 'n':
+                dynamic_cast<waffle_proxy&>(*proxy_).N = std::atoi(optarg);
+                break;
+            case 'd':
+                dynamic_cast<waffle_proxy&>(*proxy_).D = std::atoi(optarg);
+                break;
+            case 's':
+                dynamic_cast<waffle_proxy&>(*proxy_).object_size = std::atoi(optarg);
                 break;
             default:
                 usage();
@@ -132,14 +138,20 @@ int main(int argc, char *argv[]) {
     }
 
     void *arguments[1];
-    assert(dynamic_cast<waffle_proxy&>(*proxy_).trace_location_ != "");
+//    assert(dynamic_cast<waffle_proxy&>(*proxy_).trace_location_ != "");
     std::vector<std::string> keys;
     std::vector<std::string> values;
-    getKeysValues(dynamic_cast<waffle_proxy&>(*proxy_).trace_location_, keys, values);
+    int N=dynamic_cast<waffle_proxy&>(*proxy_).N;
+//    getKeysValues(dynamic_cast<waffle_proxy&>(*proxy_).trace_location_, keys, values);
+    keys=ItemIdGenerator::generate_item_ids(N);
+    for (auto &key: keys){
+        auto value=TimeSeriesDataMap::generateDataForKey(key, dynamic_cast<waffle_proxy&>(*proxy_).object_size);
+        values.push_back(value);
+        key+="@"+std::to_string(1607965121);
+    }
     std::cout << "Keys size before init is " << keys.size() << std::endl;
     auto id_to_client = std::make_shared<thrift_response_client_map>();
     arguments[0] = &id_to_client;
-    std::string dummy(object_size_, '0');
     std::cout <<"Initializing Waffle" << std::endl;
     dynamic_cast<waffle_proxy&>(*proxy_).init(keys, values, arguments);
     std::cout << "Initialized Waffle" << std::endl;

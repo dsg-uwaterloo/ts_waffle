@@ -33,12 +33,14 @@
 
 #include "redis.h"
 #include "storage_interface.h"
+#include "TS_get_oldest_key.h"
 //#include "memcached.h"
 
 
 class waffle_proxy : public proxy {
 public:
-
+    int server_get_count = 0;
+    std::vector<std::string> StKeysInServer;
     void init(const std::vector<std::string> &keys, const std::vector<std::string> &values, void ** args) override;
     void close() override;
     std::string get(const std::string &key) override;
@@ -67,7 +69,7 @@ public:
     void flush();
 
     std::string output_location_ = "log";
-    std::string trace_location_ = "";
+//    std::string trace_location_ = "";
     std::string server_host_name_ = "192.168.252.110";
     int server_port_ = 6379;
     int security_batch_size_ = 3;
@@ -92,7 +94,9 @@ public:
     int R = 50;
     int B = 50;
     int F = 25;
-    int D = 50;
+    int D = 100000;
+    int N = 100000;
+    int object_size=1024;
     int cacheBatches = 50;
     int redisBulkLength = 524287;
     std::unordered_map<std::string, std::string> keyValueMap;
@@ -101,6 +105,8 @@ public:
     std::atomic<int> timeStamp{0};
 
 private:
+    std::vector<std::string> keys_to_be_deleted;
+    void remove_oldest_data(std::vector<operation> &storage_batch);
     void create_security_batch(std::shared_ptr<queue <std::pair<operation, std::shared_ptr<std::promise<std::string>>>>> &op_queue,
                                           std::vector<operation> &storage_batch,
                                           std::unordered_map<std::string, std::vector<std::shared_ptr<std::promise<std::string>>>> &keyToPromiseMap, int& cacheMisses);

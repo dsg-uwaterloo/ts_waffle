@@ -304,7 +304,8 @@ set(CPP_REDIS_LIBRARY "${CPP_REDIS_PREFIX}/lib/${CPP_REDIS_STATIC_LIB_NAME}${CMA
 set(CPP_REDIS_TACOPIE_LIBRARY "${CPP_REDIS_PREFIX}/lib/${CPP_REDIS_TACOPIE_STATIC_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
 set(CPP_REDIS_LIBRARIES ${CPP_REDIS_LIBRARY} ${CPP_REDIS_TACOPIE_LIBRARY})
 ExternalProject_Add(cpp_redis
-        GIT_REPOSITORY https://github.com/Cylix/cpp_redis.git
+#        SOURCE_DIR "/mnt/d/Program/CS848/cpp_redis"  # Path to the local directory
+        GIT_REPOSITORY https://github.com/PeterPanYuchen/cpp_redis.git
         GIT_TAG ${CPP_REDIS_VERSION}
         GIT_SUBMODULES
         LIST_SEPARATOR |

@@ -86,7 +86,13 @@ std::vector<std::string> Cache::evictLRElementFromCache() {
     return {keyToBeRemoved, ValueToBeRemoved};
 
 }
-
+bool Cache::removeKey(std::string key) {
+    std::lock_guard<std::mutex> lock(m_mutex_);
+    if (cacheMap.find(key) == cacheMap.end()) return false;
+    accessList.erase(cacheMap[key]);
+    cacheMap.erase(key);
+    return true;
+}
 
 int Cache::size() {
     std::lock_guard<std::mutex> lock(m_mutex_);

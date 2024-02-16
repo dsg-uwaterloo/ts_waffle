@@ -2,10 +2,11 @@ set(STORAGE_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../libstorage/src)
 set(PROXY_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../proxy/src)
 set(SERVICE_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../service/src)
 set(SERVER_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set(UTILS_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../utils)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-include_directories(${STORAGE_INCLUDE} ${PROXY_INCLUDE} ${SERVICE_INCLUDE} ${SERVER_INCLUDE})
+include_directories(${STORAGE_INCLUDE} ${PROXY_INCLUDE} ${SERVICE_INCLUDE} ${SERVER_INCLUDE} ${UTILS_INCLUDE})
 
 
 add_executable(proxy_server
@@ -51,7 +52,10 @@ add_executable(proxy_server
         ../libstorage/src/redis.h
         ../libstorage/src/redis.cpp
 
-        ../service/src/thrift_utils.h)
+        ../service/src/thrift_utils.h
+        ../utils/TS_get_oldest_key.h
+        ../utils/TS_value_master.h
+        ../utils/TS_key_master.h)
 add_dependencies(proxy_server libcuckoo thrift_ep)
 target_link_libraries(proxy_server
         Threads::Threads

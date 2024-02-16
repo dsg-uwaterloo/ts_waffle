@@ -3,7 +3,7 @@ set -e
 
 mkdir -p cmakebuild
 cd cmakebuild
-cmake "$@" .. 
+cmake "$@" -DCMAKE_BUILD_TYPE=Debug ..
 
 START=$(date +%s)
 make

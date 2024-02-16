@@ -16,7 +16,8 @@ public:
     std::vector< std::string> get_batch(const std::vector<std::string> &keys) override;
     void put_batch(const std::vector< std::string> &keys, const std::vector<std::string> &values) override;
     void delete_batch(const std::vector< std::string> &keys) override;
-
+    size_t get_database_size();
+    bool key_exists(const std::string &key);
 private:
     std::vector<std::shared_ptr<cpp_redis::client>> clients;
 };
