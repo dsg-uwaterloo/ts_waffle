@@ -63,8 +63,14 @@ add_executable(proxy_benchmark
        ../utils/TS_key_master.h
         ../utils/TS_search_master.h
 )
-add_dependencies(proxy_benchmark cpp_redis libcuckoo openssl_ep thrift_ep)
+find_library(THRIFTNB_LIB NAMES thriftnb PATHS /usr/local/lib)
+message(THRIFTNB_LIB ${THRIFTNB_LIB})
+find_library(EVENT_LIB NAMES event PATHS /usr/local/lib)
+
+add_dependencies(proxy_benchmark cpp_redis libcuckoo openssl_ep)
 target_link_libraries(proxy_benchmark
+        ${THRIFTNB_LIB}
+        ${EVENT_LIB}
         ${THRIFTNB_LIBRARY}
         ${THRIFT_LIBRARY}
         ${LIBEVENT_LIBRARY}

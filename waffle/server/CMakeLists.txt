@@ -56,8 +56,13 @@ add_executable(proxy_server
         ../utils/TS_get_oldest_key.h
         ../utils/TS_value_master.h
         ../utils/TS_key_master.h)
-add_dependencies(proxy_server libcuckoo thrift_ep)
+add_dependencies(proxy_server libcuckoo)
+find_library(THRIFTNB_LIB NAMES thriftnb PATHS /usr/local/lib)
+message(THRIFTNB_LIB ${THRIFTNB_LIB})
+find_library(EVENT_LIB NAMES event PATHS /usr/local/lib)
+
 target_link_libraries(proxy_server
+
         Threads::Threads
         ${THRIFTNB_LIBRARY}
         ${THRIFT_LIBRARY}
@@ -77,4 +82,6 @@ target_link_libraries(proxy_server
         ${BENCHMARK_INCLUDE_LIBRARIES}
         ${SERVICE_INCLUDE_LIBRARIES}
         ${CLIENT_INCLUDE_LIBRARIES}
+        ${THRIFTNB_LIB}
+        ${EVENT_LIB}
         Threads::Threads)

@@ -565,5 +565,14 @@ std::string encryption_engine::prf_encrypt(const std::string& key, const std::st
 };
 
 std::string encryption_engine::prf(const std::string& plain_text) {
-    return prf_encrypt(encryption_string_, plain_text);
+//Get the sub string before ‘#’
+return plain_text;
+//    if(plain_text.find("#") == std::string::npos)
+//    {
+//        std::cout << "Warning! No # found in the string: " <<plain_text<< std::endl;
+//        return "";
+//    }
+//    std::string sub_string = plain_text.substr(0, plain_text.find("#"));
+//    return sub_string;
+//    return prf_encrypt(encryption_string_, plain_text);
 };

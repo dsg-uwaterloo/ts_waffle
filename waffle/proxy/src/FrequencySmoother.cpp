@@ -16,6 +16,7 @@ FrequencySmoother& FrequencySmoother::operator=(FrequencySmoother&& other) noexc
         accessTree = std::move(other.accessTree);
         accessFreqs = std::move(other.accessFreqs);
     }
+
     return *this;
 }
 
@@ -28,6 +29,8 @@ void FrequencySmoother::insert(std::string key) {
 	}
 	accessFreqs[key] = 0;
 	accessTree.insert({key, 0});
+    //print info
+    std::cout<< "Key: " << key << " is inserted" << std::endl;
 }
 
 
@@ -56,9 +59,12 @@ void FrequencySmoother::incrementFrequency(std::string key) {
 
 void FrequencySmoother::setFrequency(std::string key, int value) {
 	std::lock_guard<std::mutex> lock(m_mutex_);
+    std::cout<< "Key: " << key << "'s old frequency: " << accessFreqs[key] << std::endl;
 	accessTree.erase({key, accessFreqs[key]});
 	accessFreqs[key] = value;
 	accessTree.insert({key, accessFreqs[key]});
+    //print info
+    std::cout<< "Key: " << key << "'s new frequency: " << accessFreqs[key] << std::endl;
 }
 
 void FrequencySmoother::removeKey(std::string key) {

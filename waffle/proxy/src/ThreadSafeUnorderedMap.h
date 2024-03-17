@@ -42,6 +42,10 @@ public:
 	    return m_mutex_;
     }
 
+    size_t size() {
+        std::lock_guard<std::mutex> lock(m_mutex_);
+        return m_map_.size();
+    }
 private:
     mutable std::mutex m_mutex_;
     std::unordered_map<std::string, std::vector<std::shared_ptr<T>>> m_map_;

@@ -27,7 +27,7 @@ public:
             }
             it++;
         }
-        frequencySmoother.removeKey_without_mutex(oldest_key);
+//        frequencySmoother.removeKey_without_mutex(oldest_key);
         return std::pair<std::string,int>(oldest_key,oldest_timestamp);
     }
 

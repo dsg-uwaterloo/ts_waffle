@@ -139,7 +139,7 @@ void waffle_proxy::init(const std::vector<std::string> &keys, const std::vector<
     EvictedItems = evictedItems();
 
     for(int i=0; i < D; ) {
-        auto fakeKey = gen_random(rand()%10);
+        auto fakeKey = "fake"+gen_random(rand()%100+50);
         if(allKeys.find(fakeKey) == allKeys.end() && tempFakeKeys.find(fakeKey)==tempFakeKeys.end()) {
             ++i;
             fakeBst.insert(fakeKey);
@@ -237,7 +237,7 @@ void waffle_proxy::remove_oldest_data(std::vector<operation> &storage_batch) {
         state =isPresentInCache ? 1 : state;
         state = valEvicted != "" ? 2 : state;
         //print info
-        std::cout<<"State of the old: "<<oldest_key_feq_pair.first<< " is "<<state<<std::endl;
+        //std::cout<<"State of the old: "<<oldest_key_feq_pair.first<< " is "<<state<<std::endl;
         if( state == 0) {
             auto isPresentInRunningKeys = runningKeys.insertIfNotPresent(oldest_key_feq_pair.first);
             if(isPresentInRunningKeys == false) {
@@ -304,13 +304,12 @@ void waffle_proxy::create_security_batch(std::shared_ptr<queue <std::pair<operat
             bool isPresentInCache = false;
             auto val = cache.getValueWithoutPositionChangeNew(currentKey, isPresentInCache);
             auto valEvicted = EvictedItems.getValue(currentKey);
-            if(isPresentInCache == false && valEvicted == "") {
-                auto isPresentInRunningKeys = runningKeys.insertIfNotPresent(currentKey);
-                if(isPresentInRunningKeys == false) {
-                    remove_oldest_data(storage_batch);
-                }
-                ++cacheMisses;
+            if(isPresentInCache || valEvicted != "") {
+                std::cout<<"Warning, the pushed key already exist"<<std::endl;
             }
+
+            remove_oldest_data(storage_batch);
+
             cache.insertIntoCache(currentKey, operation_promise_pair.first.value);
             realBst.insert(currentKey);
             realBst.setFrequency(currentKey, timeStamp.load());
@@ -352,10 +351,12 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
 
     std::vector<std::string> realKeysNotInCache;
     auto& bstMutex = realBst.getMutex();
-    {
+    {   int counter = 0;
         std::lock_guard<std::mutex> lock(bstMutex);
         auto it = realBst.getIterator();
         for(int i=0;i<B-(operations.size()+F);) {
+            //print it first
+//            std::cout<<"Add fake real key at iteration: "<<counter<<"; with key" <<it->first<<cache.checkIfKeyExists(it->first) <<EvictedItems.checkIfKeyExists(it->first) <<std::endl;
             if(cache.checkIfKeyExists(it->first) == false && EvictedItems.checkIfKeyExists(it->first) == false) {
                 auto isPresentInRunningKeys = runningKeys.insertIfNotPresent(it->first);
                 if(isPresentInRunningKeys == false) {
@@ -364,6 +365,7 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
                 }
             }
             ++it;
+            counter++;
         }
     }
 
@@ -407,10 +409,15 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
     std::cout<<"Size of EvictedItems: "<<EvictedItems.size()<<std::endl;
     std::cout<<"Size of realBst: "<<realBst.size()<<std::endl;
     std::cout<<"Size of keys_to_be_deleted: "<<keys_to_be_deleted.size()<<std::endl;
+    std::cout<<"Size of runningKeys: "<<runningKeys.size()<<std::endl;
 //    std::cout<<"Recently added key: "<<realBst.getRUKey()<<std::endl;
 //    std::cout<<"RedisDB Size: "<<storage_interface_->get_database_size()<<std::endl;
     std::unordered_set<std::string> tempEvictedItems;
 
+    //print all storage_keys
+    for(int i = 0; i < storage_keys.size(); i++){
+        std::cout << "Going to read Storage Key at "<<i<<": "<<storage_keys[i]<<std::endl;
+    }
     std::vector<std::string> responses;
     try{
         responses = storage_interface->get_batch(storage_keys);
@@ -488,16 +495,24 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
             writeBatchValues.push_back(enc_engine->encryptNonDeterministic(gen_random(1 + rand()%10)));
         }
     }
+    //print all writeBatchKeys
+    for(int i = 0; i < writeBatchKeys.size(); i++){
+        std::cout << "Going to write Key at "<<i<<": "<<writeBatchKeys[i]<<std::endl;
+    }
     storage_interface_->put_batch(writeBatchKeys, writeBatchValues);
 
     for(auto& it: tempEvictedItems) {
         EvictedItems.erase(it);
     }
+    //print size before clear promises
+    std::cout<<"Size of promiseSatisfy before clear promises: "<<runningKeys.size()<<std::endl;
 
     for(auto& it: promiseSatisfy) {
         // std::cout << "Clearing promises " << std::endl;
         runningKeys.clearPromises(it.first, it.second);
     }
+    std::cout<<"Size of promiseSatisfy after clear promises: "<<runningKeys.size()<<std::endl;
+
     keysNotUsed.push(storage_keys);
 
     if (latency) {
@@ -682,6 +697,10 @@ void waffle_proxy::clearThread(){
     while(true) {
         auto keyVectorNotUsed = keysNotUsed.pop();
         if(keyVectorNotUsed.size() > 0)
+            //print all keys
+            for (auto it = keyVectorNotUsed.begin(); it != keyVectorNotUsed.end(); it++) {
+                std::cout << "Not used Key going to be deleted: " << *it << std::endl;
+            }
             storage_interface_->delete_batch(keyVectorNotUsed);
     }
 }

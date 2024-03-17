@@ -71,6 +71,7 @@ void usage() {
 };
 
 int main(int argc, char *argv[]) {
+    std::cout << std::boolalpha;
     int client_batch_size = 50;
     std::atomic<int> xput;
     std::atomic_init(&xput, 0);
