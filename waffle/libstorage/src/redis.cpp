@@ -189,4 +189,25 @@ bool redis::key_exists(const std::string &key) {
     // The exists command returns the count of keys that exist.
     return reply.as_integer() > 0;
 }
-
+//
+//void redis::key_list(const std::string &pattern, std::vector<std::string> &keys) {
+//    // Choose the appropriate client based on the pattern, similar to how you do in get or put.
+//    auto idx = (std::hash<std::string>{}(pattern) % clients.size());
+//    auto& client = clients[idx];
+//
+//    // Use the keys command to retrieve the keys matching the pattern.
+//    auto future = client->keys(pattern);
+//    client->commit(); // Ensure the command is sent to the server.
+//    auto reply = future.get(); // Wait for and retrieve the response.
+//
+//    if (reply.is_error()) {
+//        // Handle error appropriately, possibly re-throw or return false.
+//        throw std::runtime_error(reply.error());
+//    }
+//
+//    // The keys command returns an array of keys matching the pattern.
+//    auto key_array = reply.as_array();
+//    for (auto& key : key_array) {
+//        keys.push_back(key.as_string());
+//    }
+//}

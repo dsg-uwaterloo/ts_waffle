@@ -15,6 +15,7 @@ service waffle_thrift{
   void put(1:string key, 2:string value);
   list<string> get_batch(1:list<string> keys);
   void put_batch(1:list<string> keys, 2:list<string> values);
+  list<string> search(1:string keys);
 }
 
 service waffle_thrift_response{

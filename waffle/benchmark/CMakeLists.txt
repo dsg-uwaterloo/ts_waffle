@@ -62,6 +62,7 @@ add_executable(proxy_benchmark
         ../utils/utils.h
        ../utils/TS_key_master.h
         ../utils/TS_search_master.h
+        ../utils/utils.cpp
 )
 find_library(THRIFTNB_LIB NAMES thriftnb PATHS /usr/local/lib)
 message(THRIFTNB_LIB ${THRIFTNB_LIB})

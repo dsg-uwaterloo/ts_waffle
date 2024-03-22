@@ -40,7 +40,7 @@ public:
     int num_requests_satisfied();
     void read_responses();
     void finish();
-
+    void search(const std::string &pattern, std::vector<std::string> &results);
 
 private:
     std::shared_ptr<waffle_thriftClient> client_;

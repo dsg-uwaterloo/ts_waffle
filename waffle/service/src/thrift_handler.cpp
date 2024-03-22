@@ -73,3 +73,7 @@ void thrift_handler::get_batch(std::vector<std::string> & _return, const std::ve
 void thrift_handler::put_batch(const std::vector<std::string> & keys, const std::vector<std::string> & values) {
     proxy_->put_batch(operation_count_++, keys, values);
 }
+
+void thrift_handler::search(std::vector<std::string> & _return, const std::string& key) {
+    proxy_->search(key,_return);
+}

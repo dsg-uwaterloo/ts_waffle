@@ -52,6 +52,7 @@ public:
     void put(int queue_id, const std::string &key, const std::string &value) override;
     std::vector<std::string> get_batch(int queue_id, const std::vector<std::string> &keys) override;
     void put_batch(int queue_id, const std::vector<std::string> &keys, const std::vector<std::string> &values) override;
+    void search(const std::string &pattern, std::vector<std::string> &results) override;
 
     void async_get(const sequence_id &seq_id, const std::string &key);
     void async_put(const sequence_id &seq_id, const std::string &key, const std::string &value);
@@ -105,6 +106,7 @@ public:
     std::atomic<int> timeStamp{0};
 
 private:
+    std::string invalid_key_response_;
     std::vector<std::string> keys_to_be_deleted;
     void remove_oldest_data(std::vector<operation> &storage_batch);
     void create_security_batch(std::shared_ptr<queue <std::pair<operation, std::shared_ptr<std::promise<std::string>>>>> &op_queue,

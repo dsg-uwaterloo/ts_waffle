@@ -27,11 +27,11 @@ class waffle_thrift_responseHandler : virtual public waffle_thrift_responseIf {
 
 int main(int argc, char **argv) {
   int port = 9090;
-  ::std::shared_ptr<waffle_thrift_responseHandler> handler(new waffle_thrift_responseHandler());
-  ::std::shared_ptr<TProcessor> processor(new waffle_thrift_responseProcessor(handler));
-  ::std::shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
-  ::std::shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());
-  ::std::shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
+  ::apache::thrift::stdcxx::shared_ptr<waffle_thrift_responseHandler> handler(new waffle_thrift_responseHandler());
+  ::apache::thrift::stdcxx::shared_ptr<TProcessor> processor(new waffle_thrift_responseProcessor(handler));
+  ::apache::thrift::stdcxx::shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
+  ::apache::thrift::stdcxx::shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());
+  ::apache::thrift::stdcxx::shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
 
   TSimpleServer server(processor, serverTransport, transportFactory, protocolFactory);
   server.serve();

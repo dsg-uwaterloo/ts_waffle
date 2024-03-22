@@ -68,15 +68,20 @@ class waffle_thriftHandler : virtual public waffle_thriftIf {
     printf("put_batch\n");
   }
 
+  void search(std::vector<std::string> & _return, const std::string& keys) {
+    // Your implementation goes here
+    printf("search\n");
+  }
+
 };
 
 int main(int argc, char **argv) {
   int port = 9090;
-  ::std::shared_ptr<waffle_thriftHandler> handler(new waffle_thriftHandler());
-  ::std::shared_ptr<TProcessor> processor(new waffle_thriftProcessor(handler));
-  ::std::shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
-  ::std::shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());
-  ::std::shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
+  ::apache::thrift::stdcxx::shared_ptr<waffle_thriftHandler> handler(new waffle_thriftHandler());
+  ::apache::thrift::stdcxx::shared_ptr<TProcessor> processor(new waffle_thriftProcessor(handler));
+  ::apache::thrift::stdcxx::shared_ptr<TServerTransport> serverTransport(new TServerSocket(port));
+  ::apache::thrift::stdcxx::shared_ptr<TTransportFactory> transportFactory(new TBufferedTransportFactory());
+  ::apache::thrift::stdcxx::shared_ptr<TProtocolFactory> protocolFactory(new TBinaryProtocolFactory());
 
   TSimpleServer server(processor, serverTransport, transportFactory, protocolFactory);
   server.serve();

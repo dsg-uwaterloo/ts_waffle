@@ -160,6 +160,7 @@ int main(int argc, char *argv[]) {
     std::thread proxy_serve_thread([&proxy_server] { proxy_server->serve(); });
     std::cout << "Proxy server is reachable" << std::endl;
     sleep(250);
+    std::cout << "Quitting proxy server" << std::endl;
     //flush_thread(proxy_);
     //proxy_->close();
     //proxy_server->stop();

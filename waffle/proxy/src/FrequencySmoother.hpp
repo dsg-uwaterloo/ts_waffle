@@ -7,6 +7,7 @@
 #include <set>
 #include <mutex>
 #include <memory>
+#include <vector>
 
 
 bool freqCmp(std::pair<std::string, int> a, std::pair<std::string, int> b);
@@ -30,6 +31,8 @@ public:
 	void removeKey(std::string key);
     void removeKey_without_mutex(std::string key);
 	void addKey(std::string key);
+    void search(const std::string pattern, std::vector<std::string> &results);
+    void fetchUniqueItemIDs(std::vector<std::string> &results);
 	std::string getKeyWithMinFrequency();
     std::string getRUKey();
 	int size();
@@ -41,6 +44,7 @@ public:
 	// int removestoredFreq(std::string key);
 	mutable std::mutex m_mutex_;
 	// mutable std::mutex m_mutex_freq;
+    bool checkIfUniqueItemWithTimeStampExists(std::string &key);
 };
 
 #endif

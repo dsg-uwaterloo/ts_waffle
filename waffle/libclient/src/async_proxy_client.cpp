@@ -96,7 +96,7 @@ void async_proxy_client::read_responses() {
         try {
             reader_.recv_response(_return);
         } catch(apache::thrift::transport::TTransportException e){
-            // std::cout << "Client read responses is FAILURE " << std::endl;
+             std::cout << "Client read responses is FAILURE " << std::endl;
             (void)0;
         }
         *total_ += _return.size();
@@ -117,4 +117,8 @@ void async_proxy_client::finish(){
     requests_->push(GET_BATCH);
     sleep(5);
     response_thread_->join();
+}
+
+void async_proxy_client::search(const std::string &pattern, std::vector<std::string> &results) {
+    client_->search(results,pattern);
 }

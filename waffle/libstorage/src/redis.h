@@ -18,6 +18,7 @@ public:
     void delete_batch(const std::vector< std::string> &keys) override;
     size_t get_database_size();
     bool key_exists(const std::string &key);
+//    void key_list(const std::string &pattern, std::vector<std::string> &keys);
 private:
     std::vector<std::shared_ptr<cpp_redis::client>> clients;
 };

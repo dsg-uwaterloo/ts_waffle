@@ -41,11 +41,4 @@ class DataType{
     }
 };
 
-
-std::unordered_map<std::string, std::size_t> DataType::type2size = {
-        {"int", sizeof(int)},
-        {"float", sizeof(float)},
-        {"bool", sizeof(bool)}
-};
-
 #endif //WAFFLE_UTILS_H

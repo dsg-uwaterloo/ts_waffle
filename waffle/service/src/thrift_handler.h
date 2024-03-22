@@ -48,6 +48,8 @@ public:
 
     void async_put_batch(const sequence_id& seq_id, const std::vector<std::string> & keys, const std::vector<std::string> & values);
 
+    void search(std::vector<std::string> & _return, const std::string& key);
+
 private:
     int operation_count_ = 0;
     std::shared_ptr<proxy> proxy_;
