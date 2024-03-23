@@ -1,5 +1,8 @@
 #include "waffle_proxy.h"
 
+
+
+
 void randomize_map(const std::unordered_map<std::string, std::string>& input_map, std::vector<std::string>& keys, std::vector<std::string>& values) {
     for (const auto& it : input_map) {
         keys.push_back(it.first);
@@ -79,6 +82,8 @@ unsigned long long rdtscuhzProxy(void) {
 }
 
 void waffle_proxy::init(const std::vector<std::string> &keys, const std::vector<std::string> &values, void ** args){
+
+
     std::string initial = "No record found!";
     // Calculate the remaining length to fill with '0's
     size_t remainingLength = 1024 - initial.length();
@@ -296,9 +301,6 @@ void waffle_proxy::create_security_batch(std::shared_ptr<queue <std::pair<operat
                 std::cout<<"Key: "<<currentKey<<" is NOT present in the realBst"<<std::endl;
                 operation_promise_pair.second->set_value(invalid_key_response_);
                 return;
-
-            }else{
-                std::cout<<"Key: "<<currentKey<<" is present in the realBst"<<std::endl;
             }
             bool isPresentInCache = false;
             auto val = cache.getValueWithoutPositionChangeNew(currentKey, isPresentInCache);
@@ -364,6 +366,7 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
         //print info
         std::cout<<"Key: "<<key<<"with time: "<<std::to_string(realBst.getFrequency(key))<< " is going to be read from the server." << std::endl;
         realBst.setFrequency(key, timeStamp.load());
+
     }
 
     std::vector<std::string> realKeysNotInCache;
@@ -373,7 +376,7 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
         auto it = realBst.getIterator();
         for(int i=0;i<B-(operations.size()+F);) {
             //print it first
-//            std::cout<<"Add fake real key at iteration: "<<counter<<"; with key" <<it->first<<cache.checkIfKeyExists(it->first) <<EvictedItems.checkIfKeyExists(it->first) <<std::endl;
+            std::cout<<"Add fake real key at iteration: "<<counter<<"; with key" <<it->first<<cache.checkIfKeyExists(it->first) <<EvictedItems.checkIfKeyExists(it->first) <<std::endl;
             if(cache.checkIfKeyExists(it->first) == false && EvictedItems.checkIfKeyExists(it->first) == false) {
                 auto isPresentInRunningKeys = runningKeys.insertIfNotPresent(it->first);
                 if(isPresentInRunningKeys == false) {
@@ -621,7 +624,7 @@ void waffle_proxy::async_get_batch(const sequence_id &seq_id, int queue_id, cons
     for (const auto &key: keys) {
         waiters.push_back((get_future(queue_id, key)));
     }
-    // std::cout << "async_get_batch client ID is " << seq_id.client_id << std::endl;
+     std::cout << "async_get_batch client ID is " << seq_id.client_id << std::endl;
     respond_queue_.push(std::make_pair(GET_BATCH, std::make_pair(seq_id, std::move(waiters))));
     sequence_queue_.push(seq_id);
 };
@@ -642,7 +645,7 @@ void waffle_proxy::put_batch(int queue_id, const std::vector<std::string> &keys,
 void waffle_proxy::async_put_batch(const sequence_id &seq_id, int queue_id, const std::vector<std::string> &keys, const std::vector<std::string> &values) {
     // Send waiters to responder thread
     std::vector<std::future<std::string>> waiters;
-    // std::cout << "async_put_batch client ID is " << seq_id.client_id << std::endl;
+     std::cout << "async_put_batch client ID is " << seq_id.client_id << std::endl;
     int i = 0;
     for (const auto &key: keys) {
         waiters.push_back((put_future(queue_id, key, values[i])));
@@ -734,4 +737,9 @@ void waffle_proxy::close() {
 
 void waffle_proxy::search(const std::string &pattern, std::vector<std::string> &results) {
     realBst.search(pattern, results);
+    //print all element in the results
+    std::cout<<"Search result for pattern: "<<pattern<<std::endl;
+    for (auto it = results.begin(); it != results.end(); it++) {
+        std::cout << "\t" << *it << std::endl;
+    }
 };

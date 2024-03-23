@@ -186,7 +186,8 @@ public:
                 if (duration_since_last_gen >= time_increase) {
                     auto data = generateDataForKey(key);
                     last_generation_time_[key] = last_generation_time + time_increase; // Update last generation time
-                    return {key, last_generation_time + generation_interval_, data};
+//                    std::cout<<"Old Key: "<<key<<" at time "<<last_generation_time + time_increase<<std::endl;
+                    return {key, last_generation_time + time_increase, data};
                 }
             }
             for (const auto &key: keys_) {
@@ -194,12 +195,15 @@ public:
                 if (last_generation_it != last_generation_time_.end()) {
                     continue;
                 } else {
+                    //print info
                     std::string data = generateDataForKey(key);
                     last_generation_time_[key] = now; // Update last generation time
+//                    std::cout<<"New Key: "<<key<<" at time "<<now<<std::endl;
+
                     return {key, now, data};
                 }
             }
-            std::cout<<"No data needs to be generated at this time."<<std::endl;
+//            std::cout<<"No data needs to be generated at this time."<<std::endl;
         }
     }
 private:

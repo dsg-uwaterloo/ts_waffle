@@ -286,7 +286,7 @@ endif (THRIFT_FOUND)
 #    if (GENERATE_THRIFT)
 #        set(THRIFT_COMPILER "${THRIFT_PREFIX}/bin/thrift")
 #    endif ()
-#    ExternalProject_Add(thrift_ep
+#    ExternalProject_Add(
 #            URL "http://archive.apache.org/dist/thrift/${THRIFT_VERSION}/thrift-${THRIFT_VERSION}.tar.gz"
 #            DEPENDS boost_ep openssl_ep libevent_ep
 #            CMAKE_ARGS ${THRIFT_CMAKE_ARGS}

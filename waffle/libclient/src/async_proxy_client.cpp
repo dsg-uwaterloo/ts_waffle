@@ -96,7 +96,11 @@ void async_proxy_client::read_responses() {
         try {
             reader_.recv_response(_return);
         } catch(apache::thrift::transport::TTransportException e){
-             std::cout << "Client read responses is FAILURE " << std::endl;
+             //print detailed information and all state of the variables
+             std::cout << "Client read responses is FAILURE " << e.what() <<"\t"<<e.getType()<< std::endl;
+             for (auto &s : _return){
+                 std::cout << "\t" << s << std::endl;
+             }
             (void)0;
         }
         *total_ += _return.size();
@@ -120,5 +124,20 @@ void async_proxy_client::finish(){
 }
 
 void async_proxy_client::search(const std::string &pattern, std::vector<std::string> &results) {
-    client_->search(results,pattern);
+    while(true) {
+        try {
+            client_->search(results, pattern);
+            break;
+        } catch (apache::thrift::transport::TTransportException e) {
+            std::cout << "Client search is FAILURE " << e.what() << "\t" << e.getType() <<" at pattern "<<pattern<< std::endl;
+
+        }     catch (const std::exception& e) {
+            // Catches any exception derived from std::exception
+            std::cerr << "Client search is FAILURE " << e.what() <<" at pattern "<<pattern<< std::endl;
+        }
+        catch (...) {
+            std::cout << "Client search is FAILURE with unknown error "<<" at pattern "<<pattern << std::endl;
+        }
+
+    }
 }

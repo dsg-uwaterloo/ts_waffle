@@ -4,6 +4,7 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
+#include <iostream>
 #include "waffle_thrift.h"
 
 
@@ -2338,8 +2339,17 @@ void waffle_thriftClient::recv_search(std::vector<std::string> & _return)
   int32_t rseqid = 0;
   std::string fname;
   ::apache::thrift::protocol::TMessageType mtype;
+//  try{
+      iprot_->readMessageBegin(fname, mtype, rseqid);
 
-  iprot_->readMessageBegin(fname, mtype, rseqid);
+//  }catch(...){
+//      //print detailed information
+//        std::cout << "recv_search: readMessageBegin failed" << std::endl;
+//        std::cout << "fname: " << fname << std::endl;
+//        std::cout << "mtype: " << mtype << std::endl;
+//        std::cout << "rseqid: " << rseqid << std::endl;
+//        throw;
+//  }
   if (mtype == ::apache::thrift::protocol::T_EXCEPTION) {
     ::apache::thrift::TApplicationException x;
     x.read(iprot_);

@@ -60,6 +60,7 @@ void run_benchmark(int run_time, bool stats, std::vector<int> &latencies, int cl
     elapsed = static_cast<int>(std::chrono::duration_cast<std::chrono::microseconds>(e - s).count());
     if (stats)
         xput += (int)(static_cast<double>(ops) * 1000000 / elapsed);
+    std::cout<<"Time taken for put benchmark (original time setting: "<<run_time<<") is "<<elapsed<<std::endl;
 }
 
 void run_benchmark_query(int run_time, bool stats, std::vector<int> &latencies, int client_batch_size,
@@ -78,6 +79,9 @@ void run_benchmark_query(int run_time, bool stats, std::vector<int> &latencies, 
     std::vector<std::string> results;
     int i = 0;
     client.search("",available_keys);
+    //print size of available_keys
+    std::cout << "Size of available_keys is " << available_keys.size() << std::endl;
+    std::vector<std::string> key_list;
     while (elapsed < run_time*1000000) {
         if (stats) {
             rdtscll(start);
@@ -85,16 +89,28 @@ void run_benchmark_query(int run_time, bool stats, std::vector<int> &latencies, 
         //choose a random key in available_keys
         std::string key = available_keys[rand() % available_keys.size()];
         std::vector<std::string> oldest_timeStamp_vector;
+        std::cout<<"Going to search available time stamps for key "<<key<<std::endl;
         client.search(key,oldest_timeStamp_vector);
+
         long oldest_timeStamp = std::stol(oldest_timeStamp_vector[0]);
         int timeInterval = std::stoi(oldest_timeStamp_vector[1]);
+        std::cout<<"Oldest time stamp key: "<<key<<" is "<<oldest_timeStamp<<" and time interval is "<<timeInterval<<std::endl;
         long current_time=UNIX_TIMESTAMP::current_time();
         //generate all time stamps between oldest_timeStamp and current_time
-        std::vector<std::string> key_list;
+
         for (long i = oldest_timeStamp; i < current_time; i+=timeInterval) {
             key_list.push_back(key+"@"+std::to_string(i));
+            if (key_list.size() == client_batch_size) {
+//                std::cout<<"Going to get batch for keys: "<<std::endl;
+//                for (auto key : key_list) {
+//                    std::cout<<"\t"<<key<<std::endl;
+//                }
+                client.get_batch(key_list);
+                key_list.clear();
+            }
         }
-        client.get_batch(key_list);
+
+
         //get all the values for the timeStamps
         //std::cout << "Entering proxy_benchmark.cpp line " << __LINE__ << std::endl;
         if (stats) {
@@ -117,6 +133,7 @@ void run_benchmark_query(int run_time, bool stats, std::vector<int> &latencies, 
     elapsed = static_cast<int>(std::chrono::duration_cast<std::chrono::microseconds>(e - s).count());
     if (stats)
         xput += (int)(static_cast<double>(ops) * 1000000 / elapsed);
+    std::cout<<"Time taken for query benchmark (original time setting: "<<run_time<<") is "<<elapsed<<std::endl;
 }
 void warmup(std::vector<int> &latencies, int client_batch_size,
             int object_size, TimeSeriesDataMap &timeSeriesDataMap, std::atomic<int> &xput, async_proxy_client client) {
@@ -128,13 +145,13 @@ void cooldown(std::vector<int> &latencies, int client_batch_size,
     run_benchmark(15, false, latencies, client_batch_size, object_size, timeSeriesDataMap, xput, client);
 }
 
-void client(int idx, int client_batch_size, int object_size, std::string &output_directory, std::string &host, int proxy_port, std::atomic<int> &xput) {
+void client(int idx, int client_batch_size, int object_size, std::string &output_directory, std::string &host, int proxy_port, std::atomic<int> &xput,int no_items=10) {
     async_proxy_client client;
     client.init(host, proxy_port);
 
 
     //generate keys
-    auto keys=ItemIdGenerator::generate_item_ids(1000000);
+    auto keys=ItemIdGenerator::generate_item_ids(no_items);
     auto timeSeriesDataMap = TimeSeriesDataMap(keys, 1, object_size,client_batch_size);
 
     // std::cout << "Client initialized with batch size " << client_batch_size << std::endl;
@@ -177,7 +194,7 @@ void client_query(int idx, int client_batch_size, int object_size, std::string &
     std::vector<int> latencies;
     // std::cout << "Beginning warmup" << std::endl;
 //    warmup(latencies, client_batch_size, object_size, timeSeriesDataMap, indiv_xput, client);
-    run_benchmark_query(15, true, latencies, client_batch_size, object_size, available_keys, indiv_xput, client);
+    run_benchmark_query(15, false, latencies, client_batch_size, object_size, available_keys, indiv_xput, client);
 
     // std::cout << "Beginning benchmark" << std::endl;
     run_benchmark_query(30, true, latencies, client_batch_size, object_size, available_keys, indiv_xput, client);
@@ -195,7 +212,7 @@ void client_query(int idx, int client_batch_size, int object_size, std::string &
 
     // std::cout << "xput is: " << xput << std::endl;
     // std::cout << "Beginning cooldown" << std::endl;
-    run_benchmark_query(15, true, latencies, client_batch_size, object_size, available_keys, indiv_xput, client);
+    run_benchmark_query(15, false, latencies, client_batch_size, object_size, available_keys, indiv_xput, client);
 
     client.finish();
 }
@@ -226,7 +243,8 @@ int main(int argc, char *argv[]) {
     int proxy_port = 9090;
     int client_batch_size = 50;
     int object_size = 1024;
-    int num_clients = 10;
+    int num_clients = 1;
+    int no_items=10;
 
     std::time_t end_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     auto date_string = std::string(std::ctime(&end_time));
@@ -236,7 +254,7 @@ int main(int argc, char *argv[]) {
 
     int o;
     std::string proxy_type_ = "pancake";
-    while ((o = getopt(argc, argv, "h:p:t:s:b:n:o:")) != -1) {
+    while ((o = getopt(argc, argv, "h:p:t:s:b:n:o:i:")) != -1) {
         switch (o) {
             case 'h':
                 proxy_host = std::string(optarg);
@@ -252,6 +270,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'o':
                 output_directory = std::string(optarg);
+                break;
+            case'i':
+                no_items=std::atoi(optarg);
                 break;
             default:
                 usage();
@@ -269,7 +290,7 @@ int main(int argc, char *argv[]) {
     std::vector<std::thread> threads;
     for (int i = 0; i < num_clients; i++) {
         threads.push_back(std::thread(client, std::ref(i), std::ref(client_batch_size), std::ref(object_size),
-                                      std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(w_xput)));
+                                      std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(w_xput),no_items));
     }
     for (int i = num_clients; i < 2*num_clients; i++) {
         threads.push_back(std::thread(client_query, std::ref(i), std::ref(client_batch_size), std::ref(object_size),
@@ -277,6 +298,14 @@ int main(int argc, char *argv[]) {
     }
     for (int i = 0; i < 2*num_clients; i++)
         threads[i].join();
+//    for (int i = 0; i < num_clients; i++) {
+//        threads.push_back(std::thread(client_query, std::ref(i), std::ref(client_batch_size), std::ref(object_size),
+//                                      std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(r_xput)));
+//    }
+
+//    for (int i = 0; i < num_clients; i++)
+//        threads[i].join();
+
     // std::cout << "Xput was: " << xput << std::endl;
     std::cout << "write xput:"<<w_xput << std::endl;
     std::cout << "read xput:"<<r_xput << std::endl;

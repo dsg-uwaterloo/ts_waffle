@@ -34,7 +34,8 @@
 #include "redis.h"
 #include "storage_interface.h"
 #include "TS_get_oldest_key.h"
-//#include "memcached.h"
+
+
 
 
 class waffle_proxy : public proxy {
