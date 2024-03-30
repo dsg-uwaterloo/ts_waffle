@@ -111,10 +111,10 @@ void run_benchmark(int run_time, bool stats, std::vector<int> &latencies, int cl
         elapsed = static_cast<int>(std::chrono::duration_cast<std::chrono::microseconds>(e - s).count());
         ++i;
     }
-    if (stats) 
+    if (stats)
         ops = client.num_requests_satisfied() - ops;
     // std::cout << "Ops is " << ops << " client num_requests_satisfied is " << client.num_requests_satisfied() << std::endl;
-    e = std::chrono::high_resolution_clock::now(); 
+    e = std::chrono::high_resolution_clock::now();
     elapsed = static_cast<int>(std::chrono::duration_cast<std::chrono::microseconds>(e - s).count());
     if (stats)
         xput += (int)(static_cast<double>(ops) * 1000000 / elapsed);
@@ -172,15 +172,15 @@ void usage() {
 };
 
 int _mkdir(const char *path) {
-    #ifdef _WIN32
-        return ::_mkdir(path);
-    #else
-        #if _POSIX_C_SOURCE
-            return ::mkdir(path, 0755);
-        #else
-            return ::mkdir(path, 0755); // not sure if this works on mac
-        #endif
-    #endif
+#ifdef _WIN32
+    return ::_mkdir(path);
+#else
+#if _POSIX_C_SOURCE
+    return ::mkdir(path, 0755);
+#else
+    return ::mkdir(path, 0755); // not sure if this works on mac
+#endif
+#endif
 }
 
 int main(int argc, char *argv[]) {
@@ -188,7 +188,7 @@ int main(int argc, char *argv[]) {
     int proxy_port = 9090;
     std::string trace_location = "";
     int client_batch_size = 50;
-    int object_size = 1000;
+    int object_size = 1024;
     int num_clients = 1;
 
     std::time_t end_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -225,7 +225,10 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    _mkdir((output_directory).c_str());
+    int result=_mkdir((output_directory).c_str());
+    if (result == -1) {
+        perror("!Directory creation failed");
+    }
     std::atomic<int> xput;
     std::atomic_init(&xput, 0);
 
@@ -236,7 +239,7 @@ int main(int argc, char *argv[]) {
     std::vector<std::thread> threads;
     for (int i = 0; i < num_clients; i++) {
         threads.push_back(std::thread(client, std::ref(i), std::ref(client_batch_size), std::ref(object_size), std::ref(trace),
-                          std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(xput)));
+                                      std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(xput)));
     }
     for (int i = 0; i < num_clients; i++)
         threads[i].join();

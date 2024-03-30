@@ -21,18 +21,34 @@ FrequencySmoother& FrequencySmoother::operator=(FrequencySmoother&& other) noexc
     return *this;
 }
 
-FrequencySmoother::FrequencySmoother() : accessTree(freqCmp) {}
+FrequencySmoother::FrequencySmoother() : accessTree(freqCmp) {
+    this->needTimeStamp=true;
+}
+FrequencySmoother::FrequencySmoother(bool needTimeStamp) : accessTree(freqCmp){
+    this->needTimeStamp=needTimeStamp;
+}
 
 void FrequencySmoother::insert(std::string key) {
-	std::lock_guard<std::mutex> lock(m_mutex_);
-	if(accessFreqs.find(key)!=accessFreqs.end()) {
-        std::cout<<"WARNING: Key: "<<key<<" already exists"<<std::endl;
-		return;
-	}
-	accessFreqs[key] = 0;
-	accessTree.insert({key, 0});
+    {
+        std::lock_guard<std::mutex> lock(m_mutex_);
+        if(accessFreqs.find(key)!=accessFreqs.end()) {
+            std::cout<<"WARNING: Key: "<<key<<" already exists"<<std::endl;
+            return;
+        }
+        accessFreqs[key] = 0;
+        accessTree.insert({key, 0});
+    }
+    if (needTimeStamp){
+        std::lock_guard<std::mutex> lock(itemTimeStampMutex);
+        std::string keyWithoutTimeStamp = key.substr(0, key.length() - 11);
+        if(uniqueItemWithTimeStamp.find(keyWithoutTimeStamp) == uniqueItemWithTimeStamp.end()) {
+            uniqueItemWithTimeStamp[keyWithoutTimeStamp] = std::set<long>();
+        }
+        uniqueItemWithTimeStamp[keyWithoutTimeStamp].insert(std::stol(key.substr(key.length() - 10)));
+    }
+
     //print info
-    std::cout<< "Key: " << key << " is inserted" << std::endl;
+//    std::cout<< "Key: " << key << " is inserted" << std::endl;
 }
 
 
@@ -61,23 +77,48 @@ void FrequencySmoother::incrementFrequency(std::string key) {
 
 void FrequencySmoother::setFrequency(std::string key, int value) {
 	std::lock_guard<std::mutex> lock(m_mutex_);
-    std::cout<< "Key: " << key << "'s old frequency: " << accessFreqs[key] << std::endl;
+//    std::cout<< "Key: " << key << "'s old frequency: " << accessFreqs[key] << std::endl;
 	accessTree.erase({key, accessFreqs[key]});
 	accessFreqs[key] = value;
 	accessTree.insert({key, accessFreqs[key]});
     //print info
-    std::cout<< "Key: " << key << "'s new frequency: " << accessFreqs[key] << std::endl;
+//    std::cout<< "Key: " << key << "'s new frequency: " << accessFreqs[key] << std::endl;
 }
 
 
 
 void FrequencySmoother::removeKey(std::string key) {
-	std::lock_guard<std::mutex> lock(m_mutex_);
-    removeKey_without_mutex(key);
+    {
+        std::lock_guard<std::mutex> lock(m_mutex_);
+        accessTree.erase({key, accessFreqs[key]});
+        accessFreqs.erase(key);
+    }
+    if(needTimeStamp){
+        std::lock_guard<std::mutex> lock(itemTimeStampMutex);
+        std::string keyWithoutTimeStamp = key.substr(0, key.length() - 11);
+        if(uniqueItemWithTimeStamp.find(keyWithoutTimeStamp) != uniqueItemWithTimeStamp.end()) {
+            uniqueItemWithTimeStamp[keyWithoutTimeStamp].erase(std::stol(key.substr(key.length() - 10)));
+            if(uniqueItemWithTimeStamp[keyWithoutTimeStamp].empty()) {
+                uniqueItemWithTimeStamp.erase(keyWithoutTimeStamp);
+            }
+        }
+
+    }
 }
 void FrequencySmoother::removeKey_without_mutex(std::string key) {
     accessTree.erase({key, accessFreqs[key]});
     accessFreqs.erase(key);
+    if(needTimeStamp){
+        std::lock_guard<std::mutex> lock(itemTimeStampMutex);
+        std::string keyWithoutTimeStamp = key.substr(0, key.length() - 11);
+        if(uniqueItemWithTimeStamp.find(keyWithoutTimeStamp) != uniqueItemWithTimeStamp.end()) {
+            uniqueItemWithTimeStamp[keyWithoutTimeStamp].erase(std::stol(key.substr(key.length() - 10)));
+            if(uniqueItemWithTimeStamp[keyWithoutTimeStamp].empty()) {
+                uniqueItemWithTimeStamp.erase(keyWithoutTimeStamp);
+            }
+        }
+
+    }
 }
 
 void FrequencySmoother::addKey(std::string key) {
@@ -110,108 +151,39 @@ void FrequencySmoother::search(const std::string pattern, std::vector<std::strin
         std::cout<<"Search all available keys: "<<results.size()<<std::endl;
         return;
     }
-//    std::lock_guard<std::mutex> lock(m_mutex_);
-
-//    std::vector<std::string> tempResults;
-
-
-    long oldest_timeStamp;
-    int interval=999999999;
-//    bool successfulIteration = false;
-//    while (!successfulIteration) {
-//        try {
-            oldest_timeStamp=UNIX_TIMESTAMP::current_time()+99999999;
-            interval=999999999;
-            // Attempt to iterate over the data structure
-
     {
-        std::lock_guard<std::mutex> lock(m_mutex_);
-        for (auto it = accessTree.begin(); it != accessTree.end(); it++) {
-            if (it->first.find(pattern) != std::string::npos) {
-                long timeStamp = std::stol(it->first.substr(it->first.length() - 10));
-                if (abs(timeStamp - oldest_timeStamp) < interval) {
-                    interval = abs(timeStamp - oldest_timeStamp);
-                    assert (interval >= 0);
-                }
-                if (timeStamp < oldest_timeStamp) {
-                    oldest_timeStamp = timeStamp;
-                }
+//        std::lock_guard<std::mutex> lock(itemTimeStampMutex);
+        try {
+            std::set<long> timeStamp =uniqueItemWithTimeStamp.at(pattern);
+            for(auto it = timeStamp.begin(); it != timeStamp.end(); it++) {
+                results.push_back(pattern + "@" + std::to_string(*it));
             }
+        } catch (const std::out_of_range& e) {
+            std::cout<<"No key found for pattern: "<<pattern<<std::endl;
+            results.push_back("SEARCH FAILURE");
+            return;
         }
     }
-//
-//            successfulIteration = true; // If we reach here, iteration was successful
-//        } catch (std::exception &e) {
-//            // Handle any exceptions, potentially indicating modifications during iteration
-//            // Decide on a policy here: delay before retrying, limit the number of retries, etc.
-//            std::cerr << "Standard exception caught: " << e.what() << std::endl;
-//            successfulIteration = false;
-//        } catch (...) {
-//            // Handle any other exceptions
-//            // Decide on a policy here: delay before retrying, limit the number of retries, etc.
-//            std::cerr << "Unknown exception caught" << std::endl;
-//            successfulIteration = false;
-//        }
-//    }
-
-    results = std::vector<std::string>();
-    std::cout<<"Time Stamp search result for key "<<pattern<< ": oldest_timeStamp: " << oldest_timeStamp<< "interval: " << interval << std::endl;
-    results.push_back(std::to_string(oldest_timeStamp));
-    results.push_back(std::to_string(interval));
-
 }
 
 void FrequencySmoother::fetchUniqueItemIDs(std::vector<std::string> &results) {
-    std::lock_guard<std::mutex> lock(m_mutex_);
-    std::set<std::string> uniqueSubstrings;
-
-    for(auto it = accessTree.begin(); it != accessTree.end(); it++) {
-
-        uniqueSubstrings.insert(it->first.substr(0, it->first.length() - 11));
+//    std::lock_guard<std::mutex> lock(itemTimeStampMutex);
+    for(auto it = uniqueItemWithTimeStamp.begin(); it != uniqueItemWithTimeStamp.end(); it++) {
+        results.push_back(it->first);
     }
-    std::vector<std::string> uniqueSubstringsVector(uniqueSubstrings.begin(), uniqueSubstrings.end());
-    results = uniqueSubstringsVector;
 }
 
 bool FrequencySmoother::checkIfUniqueItemWithTimeStampExists(std::string &key) {
-//    bool successfulIteration = false;
-//    while (!successfulIteration) {
-//        try {
-    std::lock_guard<std::mutex> lock(m_mutex_);
-            for(auto it = accessTree.begin(); it != accessTree.end(); it++) {
-                if(it->first == key) {
-                    return true;
-                }
-            }
-
-//            successfulIteration = true; // If we reach here, iteration was successful
-//        } catch (std::exception &e) {
-//            // Handle any exceptions, potentially indicating modifications during iteration
-//            // Decide on a policy here: delay before retrying, limit the number of retries, etc.
-//            std::cerr << "Standard exception caught: " << e.what() << std::endl;
-//            successfulIteration = false;
-//        } catch (...) {
-//            // Handle any other exceptions
-//            // Decide on a policy here: delay before retrying, limit the number of retries, etc.
-//            std::cerr << "Unknown exception caught" << std::endl;
-//            successfulIteration = false;
-//        }
-//    }
-    return false;
+//    std::lock_guard<std::mutex> lock(itemTimeStampMutex);
+    std::string pattern = key.substr(0, key.length() - 11);
+    long timeStamp = std::stol(key.substr(key.length() - 10));
+    try {
+        std::set<long> timeStampSet = uniqueItemWithTimeStamp.at(pattern);
+        if (timeStampSet.find(timeStamp) != timeStampSet.end()) {
+            return true;
+        }
+        return false;
+    } catch (const std::out_of_range &e) {
+        return false;
+    }
 }
-// void FrequencySmoother::storeFreq(std::string key, int freq) {
-// 	std::lock_guard<std::mutex> lock(m_mutex_freq);
-// 	freqStore[key] = freq;
-// }
-
-// int FrequencySmoother::getstoredFreq(std::string key) {
-// 	std::lock_guard<std::mutex> lock(m_mutex_freq);
-// 	return freqStore[key];
-// }
-
-// int FrequencySmoother::removestoredFreq(std::string key) {
-// 	std::lock_guard<std::mutex> lock(m_mutex_freq);
-// 	auto val  = freqStore[key];
-// 	freqStore.erase(key);
-// 	return val;
-// }

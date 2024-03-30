@@ -21,9 +21,12 @@ public:
     std::unordered_map<std::string, int> accessFreqs;
 
     std::set<std::pair<std::string, int>, decltype(&freqCmp)> accessTree;
+    std::unordered_map<std::string, std::set<long>> uniqueItemWithTimeStamp;
 	FrequencySmoother(FrequencySmoother&& other) noexcept;
 	FrequencySmoother& operator=(FrequencySmoother&& other) noexcept;
 	FrequencySmoother();
+	FrequencySmoother(bool needTimeStamp);
+    bool needTimeStamp;
 	void insert(std::string key);
 	int getMinFrequency();
 	void incrementFrequency(std::string key);
@@ -43,6 +46,7 @@ public:
 	// int getstoredFreq(std::string key);
 	// int removestoredFreq(std::string key);
 	mutable std::mutex m_mutex_;
+    mutable std::mutex itemTimeStampMutex;
 	// mutable std::mutex m_mutex_freq;
     bool checkIfUniqueItemWithTimeStampExists(std::string &key);
 };

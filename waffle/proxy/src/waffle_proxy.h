@@ -41,7 +41,6 @@
 class waffle_proxy : public proxy {
 public:
     int server_get_count = 0;
-    std::vector<std::string> StKeysInServer;
     void init(const std::vector<std::string> &keys, const std::vector<std::string> &values, void ** args) override;
     void close() override;
     std::string get(const std::string &key) override;
@@ -71,7 +70,7 @@ public:
     void flush();
 
     std::string output_location_ = "log";
-//    std::string trace_location_ = "";
+    std::string trace_location_ = "";
     std::string server_host_name_ = "192.168.252.110";
     int server_port_ = 6379;
     int security_batch_size_ = 3;

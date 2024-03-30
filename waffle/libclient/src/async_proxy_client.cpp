@@ -104,6 +104,9 @@ void async_proxy_client::read_responses() {
             (void)0;
         }
         *total_ += _return.size();
+        for (auto &s : _return){
+             std::cout << "Client successfully read response: " << s << std::endl;
+        }
         _return.clear();
     }
 }
@@ -124,20 +127,18 @@ void async_proxy_client::finish(){
 }
 
 void async_proxy_client::search(const std::string &pattern, std::vector<std::string> &results) {
-    while(true) {
-        try {
-            client_->search(results, pattern);
-            break;
-        } catch (apache::thrift::transport::TTransportException e) {
-            std::cout << "Client search is FAILURE " << e.what() << "\t" << e.getType() <<" at pattern "<<pattern<< std::endl;
-
-        }     catch (const std::exception& e) {
-            // Catches any exception derived from std::exception
-            std::cerr << "Client search is FAILURE " << e.what() <<" at pattern "<<pattern<< std::endl;
-        }
-        catch (...) {
-            std::cout << "Client search is FAILURE with unknown error "<<" at pattern "<<pattern << std::endl;
-        }
-
+    try {
+        client_->search(results, pattern);
+        return;
+    } catch (apache::thrift::transport::TTransportException e) {
+        std::cout << "Client search is FAILURE " << e.what() << "\t" << e.getType() <<" at pattern "<<pattern<< std::endl;
+    }     catch (const std::exception& e) {
+        // Catches any exception derived from std::exception
+        std::cerr << "Client search is FAILURE " << e.what() <<" at pattern "<<pattern<< std::endl;
     }
+    catch (...) {
+        std::cout << "Client search is FAILURE with unknown error "<<" at pattern "<<pattern << std::endl;
+    }
+    results = std::vector<std::string>();
+    results.push_back("SEARCH FAILURE");
 }

@@ -35,7 +35,7 @@ void getKeysValues(const std::string &trace_location, std::vector<std::string>& 
             val = key.substr(key.find(" ")+1);
             key = key.substr(0, key.find(" "));
         }
-
+        assert(val!="");
         keys.push_back(key);
         values.push_back(val);
         assert (key != "SET");
@@ -107,10 +107,9 @@ int main(int argc, char *argv[]) {
             case 'q':
                 client_batch_size = std::atoi(optarg);
                 break;
-//            case 'l':
-//                dynamic_cast<waffle_proxy&>(*proxy_).trace_location_ = std::string(optarg);
-//                break;
-//                //print information
+            case 'l':
+                dynamic_cast<waffle_proxy&>(*proxy_).trace_location_ = std::string(optarg);
+                break;
             case 'y':
                 dynamic_cast<waffle_proxy&>(*proxy_).latency = true;
                 break;
@@ -139,17 +138,10 @@ int main(int argc, char *argv[]) {
     }
 
     void *arguments[1];
-//    assert(dynamic_cast<waffle_proxy&>(*proxy_).trace_location_ != "");
+    assert(dynamic_cast<waffle_proxy&>(*proxy_).trace_location_ != "");
     std::vector<std::string> keys;
     std::vector<std::string> values;
-    int N=dynamic_cast<waffle_proxy&>(*proxy_).N;
-//    getKeysValues(dynamic_cast<waffle_proxy&>(*proxy_).trace_location_, keys, values);
-    keys=ItemIdGenerator::generate_item_ids(N);
-    for (auto &key: keys){
-        auto value=TimeSeriesDataMap::generateDataForKey(key, dynamic_cast<waffle_proxy&>(*proxy_).object_size);
-        values.push_back(value);
-        key+="@"+std::to_string(1607965121);
-    }
+    getKeysValues(dynamic_cast<waffle_proxy&>(*proxy_).trace_location_, keys, values);
     std::cout << "Keys size before init is " << keys.size() << std::endl;
     auto id_to_client = std::make_shared<thrift_response_client_map>();
     arguments[0] = &id_to_client;
@@ -161,7 +153,7 @@ int main(int argc, char *argv[]) {
     std::cout << "Proxy server is reachable" << std::endl;
     sleep(250);
     std::cout << "Quitting proxy server" << std::endl;
-    //flush_thread(proxy_);
-    //proxy_->close();
-    //proxy_server->stop();
+    flush_thread(proxy_);
+    proxy_->close();
+    proxy_server->stop();
 }

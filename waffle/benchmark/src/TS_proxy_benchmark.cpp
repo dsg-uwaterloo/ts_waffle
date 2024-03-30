@@ -16,6 +16,9 @@
 #include "thrift_utils.h"
 #include "TS_value_master.h"
 #include "TS_key_master.h"
+#include <iostream>
+#include <chrono>
+#include <thread>
 typedef std::vector<std::pair<std::vector<std::string>, std::vector<std::string>>> trace_vector;
 
 
@@ -88,25 +91,24 @@ void run_benchmark_query(int run_time, bool stats, std::vector<int> &latencies, 
         }
         //choose a random key in available_keys
         std::string key = available_keys[rand() % available_keys.size()];
-        std::vector<std::string> oldest_timeStamp_vector;
-        std::cout<<"Going to search available time stamps for key "<<key<<std::endl;
-        client.search(key,oldest_timeStamp_vector);
-
-        long oldest_timeStamp = std::stol(oldest_timeStamp_vector[0]);
-        int timeInterval = std::stoi(oldest_timeStamp_vector[1]);
-        std::cout<<"Oldest time stamp key: "<<key<<" is "<<oldest_timeStamp<<" and time interval is "<<timeInterval<<std::endl;
-        long current_time=UNIX_TIMESTAMP::current_time();
-        //generate all time stamps between oldest_timeStamp and current_time
-
-        for (long i = oldest_timeStamp; i < current_time; i+=timeInterval) {
-            key_list.push_back(key+"@"+std::to_string(i));
+        std::vector<std::string> keyWithTimeStamptsList;
+//        std::cout<<"Going to search available time stamps for key "<<key<<std::endl;
+        client.search(key,keyWithTimeStamptsList);
+        if(keyWithTimeStamptsList[0]=="SEARCH FAILURE"){
+            std::cout<<"No time stamps available for key: "<<key<<std::endl;
+            continue;
+        }
+        std::cout<<"Number of Available time stamps for key "<<key<<" is "<<keyWithTimeStamptsList.size()<<std::endl;
+        for (std::string keyWithTimeStamp: keyWithTimeStamptsList) {
+            key_list.push_back(keyWithTimeStamp);
             if (key_list.size() == client_batch_size) {
-//                std::cout<<"Going to get batch for keys: "<<std::endl;
-//                for (auto key : key_list) {
-//                    std::cout<<"\t"<<key<<std::endl;
-//                }
+                std::cout<<"Going to get batch for keys: "<<std::endl;
+                for (auto key : key_list) {
+                    std::cout<<"\t"<<key<<std::endl;
+                }
                 client.get_batch(key_list);
-                key_list.clear();
+                key_list=std::vector<std::string>();
+//                std::cout<<"Sleeping for 3 seconds"<<std::endl;f
             }
         }
 
@@ -254,8 +256,11 @@ int main(int argc, char *argv[]) {
 
     int o;
     std::string proxy_type_ = "pancake";
-    while ((o = getopt(argc, argv, "h:p:t:s:b:n:o:i:")) != -1) {
+    while ((o = getopt(argc, argv, "b:h:p:t:s:b:n:o:i:")) != -1) {
         switch (o) {
+            case 'b':
+                client_batch_size = std::atoi(optarg);
+                break;
             case 'h':
                 proxy_host = std::string(optarg);
                 break;
@@ -288,23 +293,23 @@ int main(int argc, char *argv[]) {
     // std::cout << "trace loaded" << std::endl;
 
     std::vector<std::thread> threads;
-    for (int i = 0; i < num_clients; i++) {
-        threads.push_back(std::thread(client, std::ref(i), std::ref(client_batch_size), std::ref(object_size),
-                                      std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(w_xput),no_items));
-    }
-    for (int i = num_clients; i < 2*num_clients; i++) {
-        threads.push_back(std::thread(client_query, std::ref(i), std::ref(client_batch_size), std::ref(object_size),
-                                      std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(r_xput)));
-    }
-    for (int i = 0; i < 2*num_clients; i++)
-        threads[i].join();
 //    for (int i = 0; i < num_clients; i++) {
+//        threads.push_back(std::thread(client, std::ref(i), std::ref(client_batch_size), std::ref(object_size),
+//                                      std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(w_xput),no_items));
+//    }
+//    for (int i = num_clients; i < 2*num_clients; i++) {
 //        threads.push_back(std::thread(client_query, std::ref(i), std::ref(client_batch_size), std::ref(object_size),
 //                                      std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(r_xput)));
 //    }
-
-//    for (int i = 0; i < num_clients; i++)
+//    for (int i = 0; i < 2*num_clients; i++)
 //        threads[i].join();
+    for (int i = 0; i < num_clients; i++) {
+        threads.push_back(std::thread(client_query, std::ref(i), std::ref(client_batch_size), std::ref(object_size),
+                                      std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(r_xput)));
+    }
+
+    for (int i = 0; i < num_clients; i++)
+        threads[i].join();
 
     // std::cout << "Xput was: " << xput << std::endl;
     std::cout << "write xput:"<<w_xput << std::endl;
