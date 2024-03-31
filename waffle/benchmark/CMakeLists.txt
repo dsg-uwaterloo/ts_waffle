@@ -8,7 +8,7 @@ include_directories(${STORAGE_INCLUDE} ${CLIENT_INCLUDE} ${PROXY_INCLUDE} ${BENC
 
 
 add_executable(proxy_benchmark
-        src/proxy_benchmark.cpp
+        src/TS_proxy_benchmark.cpp
 
         ../libclient/src/client.h
         ../libclient/src/proxy_client.cpp
@@ -35,7 +35,7 @@ add_executable(proxy_benchmark
         ../service/src/proxy_types.cpp
         ../service/src/proxy_types.h
 
-        ../proxy/src/waffle_proxy__.cpp
+        ../proxy/src/waffle_proxy.cpp
         ../proxy/src/waffle_proxy.h
         ../proxy/src/proxy.h
         ../proxy/src/operation.h

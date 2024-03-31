@@ -3,7 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <cassert>
-
+#include <algorithm>
 bool freqCmp(std::pair<std::string, int> a, std::pair<std::string, int> b){ return (a.second == b.second ? a.first < b.first : a.second < b.second); }
 
 FrequencySmoother::FrequencySmoother(FrequencySmoother&& other) noexcept :
@@ -152,7 +152,7 @@ void FrequencySmoother::search(const std::string pattern, std::vector<std::strin
         return;
     }
     {
-//        std::lock_guard<std::mutex> lock(itemTimeStampMutex);
+        std::lock_guard<std::mutex> lock(itemTimeStampMutex);
         try {
             std::set<long> timeStamp =uniqueItemWithTimeStamp.at(pattern);
             for(auto it = timeStamp.begin(); it != timeStamp.end(); it++) {
@@ -167,14 +167,15 @@ void FrequencySmoother::search(const std::string pattern, std::vector<std::strin
 }
 
 void FrequencySmoother::fetchUniqueItemIDs(std::vector<std::string> &results) {
-//    std::lock_guard<std::mutex> lock(itemTimeStampMutex);
+
+    std::lock_guard<std::mutex> lock(itemTimeStampMutex);
     for(auto it = uniqueItemWithTimeStamp.begin(); it != uniqueItemWithTimeStamp.end(); it++) {
         results.push_back(it->first);
     }
 }
 
 bool FrequencySmoother::checkIfUniqueItemWithTimeStampExists(std::string &key) {
-//    std::lock_guard<std::mutex> lock(itemTimeStampMutex);
+    std::lock_guard<std::mutex> lock(itemTimeStampMutex);
     std::string pattern = key.substr(0, key.length() - 11);
     long timeStamp = std::stol(key.substr(key.length() - 10));
     try {
@@ -186,4 +187,31 @@ bool FrequencySmoother::checkIfUniqueItemWithTimeStampExists(std::string &key) {
     } catch (const std::out_of_range &e) {
         return false;
     }
+}
+
+std::string FrequencySmoother::getOldestKey(std::vector<std::string> keys_to_be_deleted) {
+    long current_oldest_timestamp= std::numeric_limits<long>::max();
+    std::string return_key="";
+    {
+        std::lock_guard<std::mutex> lock(itemTimeStampMutex);
+        for (auto &it : uniqueItemWithTimeStamp) {
+            for (auto &timestamp : it.second) {
+                if (current_oldest_timestamp<= timestamp){
+                    break;
+                }
+                std::string current_oldest_key = it.first + "@" + std::to_string(timestamp);
+                if (std::find(keys_to_be_deleted.begin(), keys_to_be_deleted.end(), current_oldest_key) != keys_to_be_deleted.end()) {
+                    continue;
+                }
+                current_oldest_timestamp = timestamp;
+                return_key = current_oldest_key;
+                if (current_oldest_timestamp==overall_oldest_timestamp){
+                    return return_key;
+                }
+            }
+        }
+    }
+    overall_oldest_timestamp=current_oldest_timestamp;
+    std::cout<<"Overall oldest timestamp changed: "<<overall_oldest_timestamp<<std::endl;
+    return return_key;
 }

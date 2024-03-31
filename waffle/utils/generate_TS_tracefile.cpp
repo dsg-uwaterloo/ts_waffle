@@ -23,12 +23,18 @@ int main() {
     fs::create_directories(absolute_tracefile_path.parent_path());
 
     std::vector<std::string> keys;
-    std::string value(1024, 'a');
+//    std::string value(1024, 'a');
+    std::vector<std::string> values;
     // Assuming ItemIdGenerator::generate_item_ids() is implemented elsewhere
     std::vector<std::string> items = ItemIdGenerator::generate_item_ids(num_items);
     for (auto &item : items) {
         for (long i = 0; i < num_per_item; i++)
-            keys.push_back(item + "@" + std::to_string(1607965121 + i));
+        {
+            std::string key=item + "@" + std::to_string(1700000000 + i);
+            std::string value (1024- key.length(), 'a');
+            keys.push_back(key);
+            values.push_back(key+value);
+        }
     }
     assert(keys.size() == num_keys);
 
@@ -37,8 +43,8 @@ int main() {
     if (!output_file.is_open()) {
         std::perror("Unable to open workload file");
     }
-    for (auto &key : keys) {
-        output_file << "SET " << key << " " << value << std::endl;
+    for (int i = 0; i < num_keys; i++) {
+        output_file << "SET " << keys[i] << " " << values[i] << std::endl;
     }
     output_file.close();
 

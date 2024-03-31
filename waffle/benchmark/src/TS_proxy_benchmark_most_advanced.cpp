@@ -67,7 +67,7 @@ void run_benchmark(int run_time, bool stats, std::vector<int> &latencies, int cl
 }
 
 void run_benchmark_query(int run_time, bool stats, std::vector<int> &latencies, int client_batch_size,
-                         int object_size, std::vector<std::string>& available_keys, std::atomic<int> &xput, async_proxy_client client, async_proxy_client client_search) {
+                   int object_size, std::vector<std::string>& available_keys, std::atomic<int> &xput, async_proxy_client client, async_proxy_client client_search) {
     int ops = 0;
     ops = client.num_requests_satisfied();
     if (stats) {
@@ -105,7 +105,7 @@ void run_benchmark_query(int run_time, bool stats, std::vector<int> &latencies, 
         //set the keyWithTimeStampsList only contains the index greater or equal to randomIndex
         keyWithTimeStamptsList.erase(keyWithTimeStamptsList.begin(),keyWithTimeStamptsList.begin()+randomIndex);
 
-//        std::cout<<"Number of Available time stamps for key "<<key<<" is "<<keyWithTimeStamptsList.size()<<std::endl;
+        std::cout<<"Number of Available time stamps for key "<<key<<" is "<<keyWithTimeStamptsList.size()<<std::endl;
         for (std::string keyWithTimeStamp: keyWithTimeStamptsList) {
             key_list.push_back(keyWithTimeStamp);
             counter++;
@@ -116,17 +116,17 @@ void run_benchmark_query(int run_time, bool stats, std::vector<int> &latencies, 
 //                }
 
 
-                int discrepancy;
-                while(true){
-                    discrepancy=counter-client.num_requests_satisfied()+ops;
-                    if(discrepancy<10000){
-                        break;
-                    }
-                    else {
-                        std::cout<<"Discrepancy is "<<discrepancy<<"; counter = "<<counter<<"; finished = "<<client.num_requests_satisfied()-ops<<std::endl;
-                        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                    }
-                }
+//                int discrepancy;
+//                while(true){
+//                    discrepancy=counter-client.num_requests_satisfied()-ops;
+//                    if(discrepancy<1000){
+//                        break;
+//                    }
+//                    else {
+//                        std::cout<<"Discrepancy is "<<discrepancy<<"; counter = "<<counter<<"; finished = "<<client.num_requests_satisfied()-ops<<std::endl;
+//                        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+//                    }
+//                }
                 client.get_batch(key_list);
                 key_list=std::vector<std::string>();
 //                std::cout<<"Sleeping for 3 seconds"<<std::endl;f

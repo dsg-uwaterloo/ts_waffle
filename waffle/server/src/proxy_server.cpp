@@ -153,7 +153,7 @@ int main(int argc, char *argv[]) {
     std::cout << "Proxy server is reachable" << std::endl;
     sleep(250);
     std::cout << "Quitting proxy server" << std::endl;
-    flush_thread(proxy_);
+//    flush_thread(proxy_);
     proxy_->close();
     proxy_server->stop();
 }

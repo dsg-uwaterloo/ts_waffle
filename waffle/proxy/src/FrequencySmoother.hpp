@@ -19,7 +19,7 @@ private:
 
 public:
     std::unordered_map<std::string, int> accessFreqs;
-
+    long overall_oldest_timestamp=0;
     std::set<std::pair<std::string, int>, decltype(&freqCmp)> accessTree;
     std::unordered_map<std::string, std::set<long>> uniqueItemWithTimeStamp;
 	FrequencySmoother(FrequencySmoother&& other) noexcept;
@@ -49,6 +49,8 @@ public:
     mutable std::mutex itemTimeStampMutex;
 	// mutable std::mutex m_mutex_freq;
     bool checkIfUniqueItemWithTimeStampExists(std::string &key);
+
+    std::string getOldestKey(std::vector<std::string> keys_to_be_deleted);
 };
 
 #endif

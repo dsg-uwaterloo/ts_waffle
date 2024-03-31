@@ -91,7 +91,7 @@
                 return_vector.push_back(nested_reply.as_string());
             }
         }
-        std::cout<<"Redis Server Size (get): "<<get_database_size()<<std::endl;
+//        std::cout<<"Redis Server Size (get): "<<get_database_size()<<std::endl;
         return return_vector;
     }
 
@@ -113,7 +113,7 @@
             key_value_vector_pairs[id].push_back(std::make_pair(key, values[i]));
             i++;
         }
-        std::cout << "Duplicate keys: " << count_dulicate << std::endl;
+//        std::cout << "Duplicate keys: " << count_dulicate << std::endl;
         for (auto it = key_value_vector_pairs.begin(); it != key_value_vector_pairs.end(); it++) {
             auto future = clients[it->first]->mset(it->second);
             futures.push(std::move(future));
@@ -132,7 +132,7 @@
                 throw std::runtime_error(reply.error());
             }
         }
-        std::cout<<"Redis Server Size (put): "<<get_database_size()<<std::endl;
+//        std::cout<<"Redis Server Size (put): "<<get_database_size()<<std::endl;
     }
 
     void redis::delete_batch(const std::vector<std::string> &keys) {
@@ -151,7 +151,7 @@
         for (auto it = key_vectors.begin(); it != key_vectors.end(); it++)
             clients[it->first]->commit();
 
-        std::cout<<"Redis Server Size (delete): "<<get_database_size()<<std::endl;
+//        std::cout<<"Redis Server Size (delete): "<<get_database_size()<<std::endl;
     }
     size_t redis::get_database_size() {
         // Assuming you want to check the size of the first (or any specific) Redis instance.
