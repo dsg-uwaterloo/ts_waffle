@@ -99,7 +99,7 @@ public:
     int N = 100000;
     int object_size=1024;
     int cacheBatches = 50;
-    int redisBulkLength = 524287;
+    int redisBulkLength = 5287;
     std::unordered_map<std::string, std::string> keyValueMap;
     ThreadSafeUnorderedMap<std::promise<std::string>> runningKeys;
     int num_cores = 1;

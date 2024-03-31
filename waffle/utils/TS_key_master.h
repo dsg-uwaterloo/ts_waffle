@@ -100,7 +100,18 @@ private:
         return ss.str();
     }
 
+
+
 public:
+    static void read_item_ids(std::vector<std::string> &item_ids, std::string file_name, int no_item_ids) {
+        std::ifstream file(file_name);
+        std::string line;
+        while (std::getline(file, line) && no_item_ids > 0) {
+            item_ids.push_back(line);
+            no_item_ids--;
+        }
+
+    }
     static std::vector<std::string> generate_item_ids(int no_item_ids) {
         std::set<std::string> unique_ids;
         std::vector<std::string> item_ids;

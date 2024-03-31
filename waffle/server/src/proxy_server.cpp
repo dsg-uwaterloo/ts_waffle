@@ -75,10 +75,10 @@ int main(int argc, char *argv[]) {
     int client_batch_size = 50;
     std::atomic<int> xput;
     std::atomic_init(&xput, 0);
-
+    int num_items = 10000;
     std::shared_ptr<proxy> proxy_ = std::make_shared<waffle_proxy>();
     int o;
-    while ((o = getopt(argc, argv, "h:p:s:n:v:b:c:t:o:d:z:q:l:m:r:y:f:a")) != -1) {
+    while ((o = getopt(argc, argv, "h:p:s:n:v:b:c:t:o:d:z:q:l:m:r:y:f:a:i:")) != -1) {
         switch (o) {
             case 'h':
                 dynamic_cast<waffle_proxy&>(*proxy_).server_host_name_ = std::string(optarg);
@@ -131,6 +131,9 @@ int main(int argc, char *argv[]) {
             case 's':
                 dynamic_cast<waffle_proxy&>(*proxy_).object_size = std::atoi(optarg);
                 break;
+            case 'i':
+                num_items = std::atoi(optarg);
+                break;
             default:
                 usage();
                 exit(-1);
@@ -138,10 +141,26 @@ int main(int argc, char *argv[]) {
     }
 
     void *arguments[1];
-    assert(dynamic_cast<waffle_proxy&>(*proxy_).trace_location_ != "");
+//    assert(dynamic_cast<waffle_proxy&>(*proxy_).trace_location_ != "");
     std::vector<std::string> keys;
     std::vector<std::string> values;
-    getKeysValues(dynamic_cast<waffle_proxy&>(*proxy_).trace_location_, keys, values);
+    if (dynamic_cast<waffle_proxy&>(*proxy_).trace_location_ == "") {
+        int num_per_item = dynamic_cast<waffle_proxy&>(*proxy_).N / num_items;
+        std::cout<<"Num per item: "<<num_per_item<<std::endl;
+        std::vector<std::string> items;
+        ItemIdGenerator::read_item_ids(items, "tracefiles/TS_ItemID_10000.txt", num_items);
+        for (auto &item : items) {
+            for (long i = 0; i < num_per_item; i++)
+            {
+                std::string key=item + "@" + std::to_string(1700000000 + i);
+                std::string value (dynamic_cast<waffle_proxy&>(*proxy_).object_size - key.length(), 'a');
+                keys.push_back(key);
+                values.push_back(key+value);
+            }
+        }
+    }else{
+        getKeysValues(dynamic_cast<waffle_proxy&>(*proxy_).trace_location_, keys, values);
+    }
     std::cout << "Keys size before init is " << keys.size() << std::endl;
     auto id_to_client = std::make_shared<thrift_response_client_map>();
     arguments[0] = &id_to_client;
@@ -154,6 +173,6 @@ int main(int argc, char *argv[]) {
     sleep(250);
     std::cout << "Quitting proxy server" << std::endl;
 //    flush_thread(proxy_);
-    proxy_->close();
-    proxy_server->stop();
+//    proxy_->close();
+//    proxy_server->stop();
 }

@@ -25,10 +25,10 @@ typedef std::vector<std::pair<std::vector<std::string>, std::vector<std::string>
 void run_benchmark(int run_time, bool stats, std::vector<int> &latencies, int client_batch_size,
                    int object_size, TimeSeriesDataMap& timeSeriesDataMap, std::atomic<int> &xput, async_proxy_client client) {
     std::string dummy(object_size, '0');
-    int ops = 0;
-    if (stats) {
-        ops = client.num_requests_satisfied();
-    }
+    int ops = 0, counter=0;
+    int discrepancy;
+
+    ops = client.num_requests_satisfied();
     uint64_t start, end;
     //std::cout << "Entering proxy_benchmark.cpp line " << __LINE__ << std::endl;
     auto ticks_per_ns = static_cast<double>(rdtscuhz()) / 1000;
@@ -42,7 +42,16 @@ void run_benchmark(int run_time, bool stats, std::vector<int> &latencies, int cl
             rdtscll(start);
         }
         auto keys_values_pair = timeSeriesDataMap.generate_batch_TS_data();
-
+        while(true){
+            discrepancy=counter-client.num_requests_satisfied()+ops;
+            if(discrepancy<2000){
+                break;
+            }
+            else {
+                std::cout<<"Put Discrepancy is "<<discrepancy<<"; counter = "<<counter<<"; finished = "<<client.num_requests_satisfied()-ops<<std::endl;
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        }
         //std::cout << "Entering proxy_benchmark.cpp line " << __LINE__ << std::endl;
         client.put_batch(keys_values_pair.first, keys_values_pair.second);
         if (stats) {
@@ -64,6 +73,16 @@ void run_benchmark(int run_time, bool stats, std::vector<int> &latencies, int cl
     if (stats)
         xput += (int)(static_cast<double>(ops) * 1000000 / elapsed);
     std::cout<<"Time taken for put benchmark (original time setting: "<<run_time<<") is "<<elapsed<<std::endl;
+//    while(true){
+//        discrepancy=counter-client.num_requests_satisfied()+ops;
+//        if(discrepancy<100){
+//            break;
+//        }
+//        else {
+//            std::cout<<"Cool Down Put Discrepancy is "<<discrepancy<<"; counter = "<<counter<<"; finished = "<<client.num_requests_satisfied()-ops<<std::endl;
+//            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//        }
+//    }
 }
 
 void run_benchmark_query(int run_time, bool stats, std::vector<int> &latencies, int client_batch_size,
@@ -74,6 +93,8 @@ void run_benchmark_query(int run_time, bool stats, std::vector<int> &latencies, 
         std::cout << "Before start Ops is " << ops << " client num_requests_satisfied is " << client.num_requests_satisfied() << std::endl;
     }
     int counter=0;
+
+    int discrepancy;
     uint64_t start, end;
     //std::cout << "Entering proxy_benchmark.cpp line " << __LINE__ << std::endl;
     auto ticks_per_ns = static_cast<double>(rdtscuhz()) / 1000;
@@ -86,19 +107,25 @@ void run_benchmark_query(int run_time, bool stats, std::vector<int> &latencies, 
     //print size of available_keys
     std::cout << "Size of available_keys is " << available_keys.size() << std::endl;
     std::vector<std::string> key_list;
+    int index= 0;
     while (elapsed < run_time*1000000) {
         if (stats) {
             rdtscll(start);
         }
         //choose a random key in available_keys
-        std::string key = available_keys[rand() % available_keys.size()];
+        std::string key = available_keys[index % available_keys.size()];
+        index++;
         std::vector<std::string> keyWithTimeStamptsList;
 
 //        std::cout<<"Going to search available time stamps for key "<<key<<std::endl;
         client_search.search(key,keyWithTimeStamptsList);
         if(keyWithTimeStamptsList[0]=="SEARCH FAILURE"){
             std::cout<<"No time stamps available for key: "<<key<<std::endl;
+            client_search.search("",available_keys);
             continue;
+        }
+        if (rand()%10==0){
+            std::cout<<"Number of Available time stamps for key "<<key<<" is "<<keyWithTimeStamptsList.size()<<std::endl;
         }
         //generate a random int between 0 and keyWithTimeStamptsList.size()-1 (inclusive)
         int randomIndex = rand() % keyWithTimeStamptsList.size();
@@ -116,15 +143,17 @@ void run_benchmark_query(int run_time, bool stats, std::vector<int> &latencies, 
 //                }
 
 
-                int discrepancy;
                 while(true){
                     discrepancy=counter-client.num_requests_satisfied()+ops;
-                    if(discrepancy<10000){
+                    if(discrepancy<2000){
                         break;
                     }
                     else {
-                        std::cout<<"Discrepancy is "<<discrepancy<<"; counter = "<<counter<<"; finished = "<<client.num_requests_satisfied()-ops<<std::endl;
-                        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                        std::cout<<"Query Discrepancy is "<<discrepancy<<"; counter = "<<counter<<"; finished = "<<client.num_requests_satisfied()-ops<<std::endl;
+                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//                        if(rand()%50==0){
+//                            client_search.search("",available_keys);
+//                        }
                     }
                 }
                 client.get_batch(key_list);
@@ -157,6 +186,16 @@ void run_benchmark_query(int run_time, bool stats, std::vector<int> &latencies, 
     if (stats)
         xput += (int)(static_cast<double>(ops) * 1000000 / elapsed);
     std::cout<<"Time taken for query benchmark (original time setting: "<<run_time<<") is "<<elapsed<<std::endl;
+//    while(true){
+//        discrepancy=counter-client.num_requests_satisfied()+ops;
+//        if(discrepancy<100){
+//            break;
+//        }
+//        else {
+//            std::cout<<"Cool Down Query Discrepancy is "<<discrepancy<<"; counter = "<<counter<<"; finished = "<<client.num_requests_satisfied()-ops<<std::endl;
+//            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//        }
+//    }
 }
 void warmup(std::vector<int> &latencies, int client_batch_size,
             int object_size, TimeSeriesDataMap &timeSeriesDataMap, std::atomic<int> &xput, async_proxy_client client) {
@@ -168,14 +207,16 @@ void cooldown(std::vector<int> &latencies, int client_batch_size,
     run_benchmark(15, false, latencies, client_batch_size, object_size, timeSeriesDataMap, xput, client);
 }
 
-void client(int idx, int client_batch_size, int object_size, std::string &output_directory, std::string &host, int proxy_port, std::atomic<int> &xput,int no_items=10) {
+void client(int idx, int client_batch_size, int object_size, std::string &output_directory, std::string &host, int proxy_port, std::atomic<int> &xput,int no_items=10,double generation_interval=1) {
     async_proxy_client client;
     client.init(host, proxy_port);
 
 
     //generate keys
-    auto keys=ItemIdGenerator::generate_item_ids(no_items);
-    auto timeSeriesDataMap = TimeSeriesDataMap(keys, 1, object_size,client_batch_size);
+//    auto keys=ItemIdGenerator::generate_item_ids(no_items);
+    std::vector<std::string> keys;
+    ItemIdGenerator::read_item_ids(keys, "tracefiles/TS_ItemID_10000.txt", no_items);
+    auto timeSeriesDataMap = TimeSeriesDataMap(keys, generation_interval, object_size,client_batch_size);
 
     // std::cout << "Client initialized with batch size " << client_batch_size << std::endl;
     std::atomic<int> indiv_xput;
@@ -268,8 +309,9 @@ int main(int argc, char *argv[]) {
     int proxy_port = 9090;
     int client_batch_size = 50;
     int object_size = 1024;
-    int num_clients = 1;
+    int num_clients = 2;
     int no_items=10;
+    double generation_interval=0.00001;
 
     std::time_t end_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     auto date_string = std::string(std::ctime(&end_time));
@@ -279,7 +321,7 @@ int main(int argc, char *argv[]) {
 
     int o;
     std::string proxy_type_ = "pancake";
-    while ((o = getopt(argc, argv, "b:h:p:t:s:b:n:o:i:")) != -1) {
+    while ((o = getopt(argc, argv, "b:h:p:t:s:b:n:o:i:g:")) != -1) {
         switch (o) {
             case 'b':
                 client_batch_size = std::atoi(optarg);
@@ -302,6 +344,9 @@ int main(int argc, char *argv[]) {
             case'i':
                 no_items=std::atoi(optarg);
                 break;
+            case'g':
+                generation_interval=std::atof(optarg);
+                break;
             default:
                 usage();
                 exit(-1);
@@ -316,20 +361,20 @@ int main(int argc, char *argv[]) {
     // std::cout << "trace loaded" << std::endl;
 
     std::vector<std::thread> threads;
-//    for (int i = 0; i < num_clients; i++) {
-//        threads.push_back(std::thread(client, std::ref(i), std::ref(client_batch_size), std::ref(object_size),
-//                                      std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(w_xput),no_items));
-//    }
-//    for (int i = num_clients; i < 2*num_clients; i++) {
-//        threads.push_back(std::thread(client_query, std::ref(i), std::ref(client_batch_size), std::ref(object_size),
-//                                      std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(r_xput)));
-//    }
-//    for (int i = 0; i < 2*num_clients; i++)
-//        threads[i].join();
-    for (int i = 0; i < num_clients; i++) {
+    for (int i = 0; i < std::max(num_clients/2,1); i++) {
+        std::cout<<"Add a put client"<<std::endl;
+        threads.push_back(std::thread(client, std::ref(i), std::ref(client_batch_size), std::ref(object_size),
+                                      std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(w_xput),no_items,generation_interval));
+    }
+    for (int i = std::max(num_clients/2,1); i < num_clients; i++) {
+        std::cout<<"Add a query client"<<std::endl;
         threads.push_back(std::thread(client_query, std::ref(i), std::ref(client_batch_size), std::ref(object_size),
                                       std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(r_xput)));
     }
+//    for (int i = 0; i < num_clients; i++) {
+//        threads.push_back(std::thread(client_query, std::ref(i), std::ref(client_batch_size), std::ref(object_size),
+//                                      std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(r_xput)));
+//    }
 
     for (int i = 0; i < num_clients; i++)
         threads[i].join();

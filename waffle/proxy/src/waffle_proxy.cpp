@@ -127,7 +127,7 @@ void waffle_proxy::init(const std::vector<std::string> &keys, const std::vector<
         realBst.insert(keys[i]);
         keyValueMap[encryption_engine_.prf(keys[i] + "#" + std::to_string(realBst.getFrequency(keys[i])))] = encryption_engine_.encryptNonDeterministic(values[i]);
     }
-
+    std::cout<<"Real BST initialized with size "<<keyValueMap.size()<<std::endl;
     // Initialising Cache
     size_t cacheCapacity = cacheBatches*keys.size()/100;
     std::unordered_set<std::string> temp;
@@ -145,7 +145,7 @@ void waffle_proxy::init(const std::vector<std::string> &keys, const std::vector<
             keyValueMap.erase(encryption_engine_.prf(keys[index] + "#" + std::to_string(realBst.getFrequency(keys[index]))));
         }
     }
-
+    std::cout<<"Cache initialized with size "<<keysCacheUnencrypted.size()<<std::endl;
     cache = Cache(keysCacheUnencrypted, valuesCache, cacheCapacity*10);
     EvictedItems = evictedItems();
 
@@ -165,10 +165,11 @@ void waffle_proxy::init(const std::vector<std::string> &keys, const std::vector<
             keyValueMap[tempFakeKey] = fakeKeyValue;
         }
     }
-
+    std::cout<<"Fake BST initialized with size "<<fakeBst.size()<<std::endl;
     std::vector<std::string> redisKeys;
     std::vector<std::string> redisValues;
     randomize_map(keyValueMap, redisKeys, redisValues);
+    keyValueMap.empty();
 
     std::vector<std::string> finalKeysRedis;
     std::vector<std::string> finalValuesRedis;
@@ -181,9 +182,6 @@ void waffle_proxy::init(const std::vector<std::string> &keys, const std::vector<
             finalKeysRedis.clear();
         }
     }
-//    for (int i = 0; i < finalKeysRedis.size(); i++) {
-//        std::cout << "Key: " << finalKeysRedis[i] <<" is going to be send to redis."<< std::endl;
-//    }
     if(finalValuesRedis.size() > 0) {
         storage_interface_->put_batch(finalKeysRedis, finalValuesRedis);
     }
@@ -245,7 +243,7 @@ void waffle_proxy::remove_oldest_data(std::vector<operation> &storage_batch) {
 //        auto oldest_key_feq_pair = TS_get_oldest_key::get_oldest_key(realBst,keys_to_be_deleted);
     std::string oldest_key = realBst.getOldestKey(keys_to_be_deleted);
     {
-        std::lock_guard<std::mutex> lock(bstMutex);
+//        std::lock_guard<std::mutex> lock(bstMutex);
 
         bool isPresentInCache = false;
         auto val = cache.getValueWithoutPositionChangeNew(oldest_key, isPresentInCache);
@@ -264,7 +262,7 @@ void waffle_proxy::remove_oldest_data(std::vector<operation> &storage_batch) {
             }
             keys_to_be_deleted.push_back(oldest_key);
             //print info
-            std::cout<<"Oldest Key: "<<oldest_key<< " is registered to be removed from the server." << std::endl;
+//            std::cout<<"Oldest Key: "<<oldest_key<< " is registered to be removed from the server." << std::endl;
             return;
         }
 
@@ -324,13 +322,13 @@ void waffle_proxy::create_security_batch(std::shared_ptr<queue <std::pair<operat
             //check key if available, and add a dummy key if not available!
         } else {
             // It's a PUT request
-            std::cout<<"PUT request"<<std::endl;
-            bool isPresentInCache = false;
-            auto val = cache.getValueWithoutPositionChangeNew(currentKey, isPresentInCache);
-            auto valEvicted = EvictedItems.getValue(currentKey);
-            if(isPresentInCache || valEvicted != "") {
-                std::cout<<"Warning, the pushed key already exist"<<std::endl;
-            }
+//            std::cout<<"PUT request"<<std::endl;
+//            bool isPresentInCache = false;
+//            auto val = cache.getValueWithoutPositionChangeNew(currentKey, isPresentInCache);
+//            auto valEvicted = EvictedItems.getValue(currentKey);
+//            if(isPresentInCache || valEvicted != "") {
+//                std::cout<<"Warning, the pushed key already exist"<<std::endl;
+//            }
 
             remove_oldest_data(storage_batch);
             cache.insertIntoCache(currentKey, operation_promise_pair.first.value);
@@ -469,7 +467,7 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
             if(std::find(keys_to_be_deleted.begin(), keys_to_be_deleted.end(), readBatchMap[storage_keys[i]]) != keys_to_be_deleted.end()){
                 realBst.removeKey(readBatchMap[storage_keys[i]]);
                 //print info
-                std::cout<<"Key: "<<readBatchMap[storage_keys[i]]<< " is removed from the server." << std::endl;
+//                std::cout<<"Key: "<<readBatchMap[storage_keys[i]]<< " is removed from the server." << std::endl;
                 keys_to_be_deleted.erase(std::remove(keys_to_be_deleted.begin(), keys_to_be_deleted.end(), readBatchMap[storage_keys[i]]), keys_to_be_deleted.end());
                 continue;
             }

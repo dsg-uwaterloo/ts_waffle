@@ -565,7 +565,7 @@ std::string encryption_engine::prf_encrypt(const std::string& key, const std::st
 };
 
 std::string encryption_engine::prf(const std::string& plain_text) {
-    return plain_text;
+//    return plain_text;
 //    if(plain_text.find("#") == std::string::npos)
 //    {
 //        std::cout << "Warning! No # found in the string: " <<plain_text<< std::endl;

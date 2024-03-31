@@ -53,14 +53,14 @@
         std::unordered_map<int, std::vector<std::string>> key_vectors;
 
         // Gather all relevant storage interface's by id and create vector for key batch
-        int count=0;
+//        int count=0;
         for (const auto &key: keys) {
-            count++;
-            if (!key_exists(key) )
-            {
-                std::cout << "Key at "<<count<<" does not exist: " << key << std::endl;
-                throw std::runtime_error("Key does not exist");
-            }
+//            count++;
+//            if (!key_exists(key) )
+//            {
+//                std::cout << "Key at "<<count<<" does not exist: " << key << std::endl;
+//                throw std::runtime_error("Key does not exist");
+//            }
             auto id = (std::hash<std::string>{}(std::string(key)) % clients.size());
             key_vectors[id].emplace_back(key);
         }

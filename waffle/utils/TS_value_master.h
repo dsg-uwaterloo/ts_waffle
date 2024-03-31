@@ -175,7 +175,7 @@ public:
                 long duration_since_last_gen = now - last_generation_time;
                 std::string key = last_generation_it.first;
                 int size = DataType::get_data_type_size(key);
-                int time_increase = object_size_ / size * generation_interval_;
+                int time_increase =1;// object_size_ / size * generation_interval_;
                 //print with probability 0.01
 //                if (rand() % 100 == 0) {
 //                    std::cout<<"key: "<<key<<std::endl;
@@ -190,8 +190,15 @@ public:
                     return {key, last_generation_time + time_increase, data};
                 }
             }
+            if (last_generation_time_.size()==keys_.size()){
+                continue;
+            }
+            if (rand()%30==0){
+                std::cout<<"Important Info - Used Key Size: "<<last_generation_time_.size()<<std::endl;
+            }
             for (const auto &key: keys_) {
                 auto last_generation_it = last_generation_time_.find(key);
+
                 if (last_generation_it != last_generation_time_.end()) {
                     continue;
                 } else {
