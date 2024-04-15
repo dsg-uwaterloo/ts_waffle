@@ -99,15 +99,15 @@
         std::queue<std::future<cpp_redis::reply>> futures;
         std::unordered_map<int, std::vector<std::pair<std::string, std::string>>> key_value_vector_pairs;
 
-        // Gather all relevant storage interface's by id and create vector for key batch
+//         Gather all relevant storage interface's by id and create vector for key batch
         int i = 0;
-        int count_dulicate=0;
+//        int count_dulicate=0;
         for (const auto &key: keys) {
             //print if key exists
-            if (key_exists(key) )
-            {
-                count_dulicate++;
-            }
+//            if (key_exists(key) )
+//            {
+//                count_dulicate++;
+//            }
 
             auto id = (std::hash<std::string>{}(std::string(key)) % clients.size());
             key_value_vector_pairs[id].push_back(std::make_pair(key, values[i]));

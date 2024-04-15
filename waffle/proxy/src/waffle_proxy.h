@@ -1,5 +1,7 @@
 #ifndef WAFFLE_PROXY_H
 #define WAFFLE_PROXY_H
+#include <fstream> // Include the fstream library to work with files
+#include <iostream> // Include for basic input and output
 
 #include <atomic>
 #include <unordered_map>
@@ -99,12 +101,13 @@ public:
     int N = 100000;
     int object_size=1024;
     int cacheBatches = 50;
-    int redisBulkLength = 5287;
+    int redisBulkLength = 52870;
     std::unordered_map<std::string, std::string> keyValueMap;
     ThreadSafeUnorderedMap<std::promise<std::string>> runningKeys;
     int num_cores = 1;
     std::atomic<int> timeStamp{0};
 
+    std::ofstream file;
 private:
     std::string invalid_key_response_;
     std::vector<std::string> keys_to_be_deleted;

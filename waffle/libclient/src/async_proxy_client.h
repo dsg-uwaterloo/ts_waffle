@@ -10,6 +10,7 @@
 #include <atomic>
 #include <thread>
 #include <iostream>
+#include <algorithm>
 
 #include "client.h"
 #include "waffle_thrift.h"

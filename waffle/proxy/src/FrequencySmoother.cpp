@@ -31,10 +31,10 @@ FrequencySmoother::FrequencySmoother(bool needTimeStamp) : accessTree(freqCmp){
 void FrequencySmoother::insert(std::string key) {
     {
         std::lock_guard<std::mutex> lock(m_mutex_);
-        if(accessFreqs.find(key)!=accessFreqs.end()) {
-            std::cout<<"WARNING: Key: "<<key<<" already exists"<<std::endl;
-            return;
-        }
+//        if(accessFreqs.find(key)!=accessFreqs.end()) {
+//            std::cout<<"WARNING: Key: "<<key<<" already exists"<<std::endl;
+//            return;
+//        }
         accessFreqs[key] = 0;
         accessTree.insert({key, 0});
     }

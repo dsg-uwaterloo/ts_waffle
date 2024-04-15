@@ -82,7 +82,7 @@ unsigned long long rdtscuhzProxy(void) {
 }
 
 void waffle_proxy::init(const std::vector<std::string> &keys, const std::vector<std::string> &values, void ** args){
-
+    file.open("waffle_proxy.log", std::ios::app);
 
     std::string initial = "No record found!";
     // Calculate the remaining length to fill with '0's
@@ -362,11 +362,14 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
     // std::cout << "r is " << operations.size() << " f_r is " <<  B-(operations.size()+F) << std::endl;
     for(int i = 0; i < operations.size(); i++){
         std::string key = operations[i].key;
+        int previousTimeStamp = realBst.getFrequency(key);
         auto stKey = enc_engine->prf(key + "#" + std::to_string(realBst.getFrequency(key)));
         readBatchMap[stKey] = key;
         storage_keys.push_back(stKey);
         //print info
 //        std::cout<<"Key: "<<key<<"with time: "<<std::to_string(realBst.getFrequency(key))<< " is going to be read from the server." << std::endl;
+        int alpha=timeStamp.load()-previousTimeStamp;
+        file << alpha << std::endl;
         realBst.setFrequency(key, timeStamp.load());
 
     }
@@ -392,6 +395,9 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
     }
 
     for(auto& iter: realKeysNotInCache) {
+        int previousTimeStamp = realBst.getFrequency(iter);
+        int alpha=timeStamp.load()-previousTimeStamp;
+        file << alpha << std::endl;
         auto stKey = enc_engine->prf(iter + "#" + std::to_string(realBst.getFrequency(iter)));
         readBatchMap[stKey] = iter;
         storage_keys.push_back(stKey);
@@ -676,9 +682,15 @@ void waffle_proxy::responder_thread(){
         std::vector<std::string>results;
 //        std::cout<<"Responding with length: "<<tuple.second.second.size()<<std::endl;
         for (int i = 0; i < tuple.second.second.size(); i++) {
+            if (op_code==PUT_BATCH){
+                results.push_back("PUT SUCCESSFUL");
+//                std::cout<<"\t\tResponding with seq: "<<seq<<" Opcode: "<<op_code <<" content: "<<"PUT SUCCESSFUL"<<std::endl;
+                continue;
+            }
             results.push_back(tuple.second.second[i].get());
-//            std::cout<<"\t\tResponding with content"<<results[i].substr(0,50)<<std::endl;
+//            std::cout<<"\t\tResponding with seq: "<<seq<<" Opcode: "<<op_code <<" content: "<<results[i].substr(0,50)<<std::endl;
         }
+//        std::cout<<" Response with length of "<<results.size()<<std::endl;
         id_to_client_->async_respond_client(seq, op_code, results);
     }
     std::cout << "Quitting response thread" << std::endl;
@@ -688,11 +700,13 @@ void waffle_proxy::clearThread(){
     while(true) {
         auto keyVectorNotUsed = keysNotUsed.pop();
         if(keyVectorNotUsed.size() > 0)
+        {
             //print all keys
 //            for (auto it = keyVectorNotUsed.begin(); it != keyVectorNotUsed.end(); it++) {
 //                std::cout << "Not used Key going to be deleted: " << *it << std::endl;
 //            }
-        storage_interface_->delete_batch(keyVectorNotUsed);
+            storage_interface_->delete_batch(keyVectorNotUsed);
+        }
     }
 }
 
@@ -701,6 +715,7 @@ void waffle_proxy::flush() {
 };
 
 void waffle_proxy::close() {
+    file.close();
     finished_ = true;
     for (int i = 0; i < threads_.size(); i++)
         threads_[i].join();

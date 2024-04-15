@@ -123,10 +123,13 @@ private:
 
 class TimeSeriesDataMap {
 public:
+    int current_generating_item_index=0;
     int batch_size = 100;
     static std::string generateDataForKey(const std::string& key, int object_size){
-        std::string dataType = DataType::get_data_type(key);
+        std::string return_dummy(object_size,'a');
+        return return_dummy;
         std::string serializedData;
+        std::string dataType = DataType::get_data_type(key);
 
         if (dataType == "float") {
             auto data = TimeSeriesDataGenerator::generateData<float>(object_size);
@@ -154,7 +157,7 @@ public:
         std::vector<std::string> keys;
         std::vector<std::string> data;
         for (int i = 0; i < batch_size; i++) {
-            std::tuple<std::string, long, std::string> result = generate_TS_data();
+            std::tuple<std::string, long, std::string> result = generate_TS_data_fast();
             std::string key = std::get<0>(result);
             long timestamp = std::get<1>(result);
             std::string value = std::get<2>(result);
@@ -213,8 +216,21 @@ public:
 //            std::cout<<"No data needs to be generated at this time."<<std::endl;
         }
     }
-private:
+    std::tuple<std::string, long, std::string> generate_TS_data_fast() {
+        if(++current_generating_item_index>=keys_.size()){
+            current_time_stamp++;
+            std::cout<<"Current Time Stamp: "<<current_time_stamp<<std::endl;
+            current_generating_item_index %= keys_.size();
 
+        }
+        std::string key=keys_[current_generating_item_index];
+
+        auto data = generateDataForKey(key);
+        return {key, current_time_stamp, data};
+    }
+
+private:
+    long current_time_stamp=UNIX_TIMESTAMP::current_time();
     std::string generateDataForKey(const std::string& key) const {
         return generateDataForKey(key, object_size_);
     }
