@@ -145,8 +145,9 @@ int main(int argc, char *argv[]) {
     int N=dynamic_cast<waffle_proxy&>(*proxy_).N;
 //    getKeysValues(dynamic_cast<waffle_proxy&>(*proxy_).trace_location_, keys, values);
     keys=ItemIdGenerator::generate_item_ids(N);
+    std::string dummy_value(dynamic_cast<waffle_proxy&>(*proxy_).object_size,"i")
     for (auto &key: keys){
-        auto value=TimeSeriesDataMap::generateDataForKey(key, dynamic_cast<waffle_proxy&>(*proxy_).object_size);
+        auto value=dummy_value;
         values.push_back(value);
         key+="@"+std::to_string(1607965121);
     }

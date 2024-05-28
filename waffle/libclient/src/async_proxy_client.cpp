@@ -100,14 +100,13 @@ void async_proxy_client::read_responses() {
              for (auto &s : _return){
                  std::cout << "\t" << s << std::endl;
              }
-            (void)0;
         }
         *total_ += _return.size();
-        for (auto &s : _return){
-            if(s=="PUT SUCCESSFUL")
-                continue;
-             std::cout << "Client successfully read response: " << s.size() <<" with content: "<<s.substr(0,std::min(static_cast<int>(s.size()),50))<<std::endl;
-        }
+//        for (auto &s : _return){
+//            if(s=="PUT SUCCESSFUL")
+//                continue;
+//             std::cout << "Client successfully read response: " << s.size() <<" with content: "<<s.substr(0,std::min(static_cast<int>(s.size()),50))<<std::endl;
+//        }
         _return.clear();
     }
 }

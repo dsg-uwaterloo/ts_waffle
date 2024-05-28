@@ -1,8 +1,4 @@
 #include "waffle_proxy.h"
-
-
-
-
 void randomize_map(const std::unordered_map<std::string, std::string>& input_map, std::vector<std::string>& keys, std::vector<std::string>& values) {
     for (const auto& it : input_map) {
         keys.push_back(it.first);
@@ -81,7 +77,9 @@ unsigned long long rdtscuhzProxy(void) {
     return (unsigned long long) freq;
 }
 
-void waffle_proxy::init(const std::vector<std::string> &keys, const std::vector<std::string> &values, void ** args){
+void waffle_proxy::init(const std::vector<std::string> &keys, const std::vector<std::string> &values, bool testing, bool recording_alpha, void ** args){
+    this->testing=testing;
+    this->recording_alpha=recording_alpha;
     file.open("waffle_proxy.log", std::ios::app);
 
     std::string initial = "No record found!";
@@ -148,12 +146,12 @@ void waffle_proxy::init(const std::vector<std::string> &keys, const std::vector<
     std::cout<<"Cache initialized with size "<<keysCacheUnencrypted.size()<<std::endl;
     cache = Cache(keysCacheUnencrypted, valuesCache, cacheCapacity*10);
     EvictedItems = evictedItems();
+    fakeBst.needTimeStamp = false;
 
     for(int i=0; i < D; ) {
-        auto fakeKey = "fake"+gen_random(rand()%100+50);
+        auto fakeKey = "fake"+gen_random(rand()%10+5);
         if(allKeys.find(fakeKey) == allKeys.end() && tempFakeKeys.find(fakeKey)==tempFakeKeys.end()) {
             ++i;
-            fakeBst.needTimeStamp = false;
             fakeBst.insert(fakeKey);
             tempFakeKeys.insert(fakeKey);
             auto tempFakeKey = encryption_engine_.prf(fakeKey + "#" + std::to_string(fakeBst.getFrequency(fakeKey)));
@@ -236,54 +234,50 @@ void waffle_proxy::init(const std::vector<std::string> &keys, const std::vector<
     ticks_per_ns = static_cast<double>(rdtscuhzProxy()) / 1000;
 
     std::cout << "Successfully initialized waffle with keys size " << keys.size() << " and cache with " << cache.size() << " Fake keys size is " << D << " batch size is " << B << " F is" << F << " FakeBST size is " << fakeBst.size() << std::endl;
+
 }
+
+//NEWFEATURES 1
 void waffle_proxy::remove_oldest_data(std::vector<operation> &storage_batch) {
-    auto& bstMutex = realBst.getMutex();
+//    auto& bstMutex = realBst.getMutex();
     int state = 0;
 //        auto oldest_key_feq_pair = TS_get_oldest_key::get_oldest_key(realBst,keys_to_be_deleted);
     std::string oldest_key = realBst.getOldestKey(keys_to_be_deleted);
-    {
-//        std::lock_guard<std::mutex> lock(bstMutex);
 
-        bool isPresentInCache = false;
-        auto val = cache.getValueWithoutPositionChangeNew(oldest_key, isPresentInCache);
-        auto valEvicted = EvictedItems.getValue(oldest_key);
-        state =isPresentInCache ? 1 : state;
-        state = valEvicted != "" ? 2 : state;
+    bool isPresentInCache = false;
+    auto val = cache.getValueWithoutPositionChangeNew(oldest_key, isPresentInCache);
+    auto valEvicted = EvictedItems.getValue(oldest_key);
+    state =isPresentInCache ? 1 : state;
+    state = valEvicted != "" ? 2 : state;
+    //print info
+    //std::cout<<"State of the old: "<<oldest_key_feq_pair.first<< " is "<<state<<std::endl;
+    if( state == 0) {
+        auto isPresentInRunningKeys = runningKeys.insertIfNotPresent(oldest_key);
+        if(isPresentInRunningKeys == false) {
+            operation temp = operation();
+            temp.key = oldest_key;
+            temp.value = "";
+            storage_batch.push_back(temp);
+        }
+        keys_to_be_deleted.push_back(oldest_key);
         //print info
-        //std::cout<<"State of the old: "<<oldest_key_feq_pair.first<< " is "<<state<<std::endl;
-        if( state == 0) {
-            auto isPresentInRunningKeys = runningKeys.insertIfNotPresent(oldest_key);
-            if(isPresentInRunningKeys == false) {
-                operation temp = operation();
-                temp.key = oldest_key;
-                temp.value = "";
-                storage_batch.push_back(temp);
-            }
-            keys_to_be_deleted.push_back(oldest_key);
-            //print info
 //            std::cout<<"Oldest Key: "<<oldest_key<< " is registered to be removed from the server." << std::endl;
-            return;
-        }
-
-
-        if (state==1) {
-            //remove from cache
-            cache.removeKey(oldest_key);
-            realBst.removeKey_without_mutex(oldest_key);
-            return;
-        }
-
-        if (state==2) {
-            //remove from evicted items
-            EvictedItems.erase(oldest_key);
-            realBst.removeKey_without_mutex(oldest_key);
-            return;
-        }
-
-        //WARNING: This should never happen
-        std::cout << "WARNING: This should never happen: Key is not present in cache or evicted items" << std::endl;
+        return;
     }
+
+
+    if (state==1) {
+        //remove from cache
+        cache.removeKey(oldest_key);
+        realBst.removeKey(oldest_key);
+        return;
+    }
+
+    //remove from evicted items
+    EvictedItems.erase(oldest_key);
+    realBst.removeKey(oldest_key);
+    return;
+
 }
 
 void waffle_proxy::create_security_batch(std::shared_ptr<queue <std::pair<operation, std::shared_ptr<std::promise<std::string>>>>> &op_queue,
@@ -296,12 +290,23 @@ void waffle_proxy::create_security_batch(std::shared_ptr<queue <std::pair<operat
         auto operation_promise_pair = op_queue->pop();
         auto currentKey = operation_promise_pair.first.key;
         if(operation_promise_pair.first.value == "") {
-            // It's a GET request
+            // It's a GET
+            //NEWFEATURES 2
+            uint64_t start,end;
+            if(testing){
+                rdtscllProxy(start);
+            }
             if (realBst.checkIfUniqueItemWithTimeStampExists(currentKey) == false) {
                 //print info
-                std::cout<<"Key: "<<currentKey<<" is NOT present in the realBst"<<std::endl;
+//                std::cout<<"Key: "<<currentKey<<" is NOT present in the realBst"<<std::endl;
                 operation_promise_pair.second->set_value(invalid_key_response_);
                 return;
+            }
+
+            if (testing){
+                rdtscllProxy(end);
+                double cycles = static_cast<double>(end - start);
+                std::cout<<"NEWFEATURES2 "<<cycles / ticks_per_ns<<std::endl;
             }
 //            std::cout<<"\tReceived to get Key: "<<currentKey<<std::endl;
             bool isPresentInCache = false;
@@ -329,8 +334,19 @@ void waffle_proxy::create_security_batch(std::shared_ptr<queue <std::pair<operat
 //            if(isPresentInCache || valEvicted != "") {
 //                std::cout<<"Warning, the pushed key already exist"<<std::endl;
 //            }
+            //NEWFEATURES 3
+            uint64_t start,end;
+            if(testing){
+                rdtscllProxy(start);
+            }
 
             remove_oldest_data(storage_batch);
+
+            if (testing){
+                rdtscllProxy(end);
+                double cycles = static_cast<double>(end - start);
+                std::cout<<"NEWFEATURES3 "<<cycles / ticks_per_ns<<std::endl;
+            }
             cache.insertIntoCache(currentKey, operation_promise_pair.first.value);
             realBst.insert(currentKey);
             realBst.setFrequency(currentKey, timeStamp.load());
@@ -350,26 +366,30 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
     timeStamp.fetch_add(1);
 
     if(latency) {
-        std::string line("");
-        auto cacheMissPercentage = static_cast<double>(cacheMisses)/R;
-        line.append(std::to_string(cacheMissPercentage) + "\n");
-        cacheMisses = 0;
-        out_cache_miss << line;
-        out_cache_miss.flush();
-        rdtscllProxy(start);
+//        std::string line("");
+//        auto cacheMissPercentage = static_cast<double>(cacheMisses)/R;
+//        line.append(std::to_string(cacheMissPercentage) + "\n");
+//        cacheMisses = 0;
+//        out_cache_miss << line;
+//        out_cache_miss.flush();
+//        rdtscllProxy(start);
     }
 
     // std::cout << "r is " << operations.size() << " f_r is " <<  B-(operations.size()+F) << std::endl;
     for(int i = 0; i < operations.size(); i++){
         std::string key = operations[i].key;
-        int previousTimeStamp = realBst.getFrequency(key);
+        int previousTimeStamp;
+        if (recording_alpha)
+            previousTimeStamp=realBst.getFrequency(key);
         auto stKey = enc_engine->prf(key + "#" + std::to_string(realBst.getFrequency(key)));
         readBatchMap[stKey] = key;
         storage_keys.push_back(stKey);
         //print info
 //        std::cout<<"Key: "<<key<<"with time: "<<std::to_string(realBst.getFrequency(key))<< " is going to be read from the server." << std::endl;
-        int alpha=timeStamp.load()-previousTimeStamp;
-        file << alpha << std::endl;
+        if (recording_alpha){
+            int alpha=timeStamp.load()-previousTimeStamp;
+            file << "REAL: "<<alpha << std::endl;
+        }
         realBst.setFrequency(key, timeStamp.load());
 
     }
@@ -395,9 +415,11 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
     }
 
     for(auto& iter: realKeysNotInCache) {
-        int previousTimeStamp = realBst.getFrequency(iter);
-        int alpha=timeStamp.load()-previousTimeStamp;
-        file << alpha << std::endl;
+        if (recording_alpha){
+            int previousTimeStamp = realBst.getFrequency(iter);
+            int alpha=timeStamp.load()-previousTimeStamp;
+            file << "FAKEREAL: "<<alpha << std::endl;
+        }
         auto stKey = enc_engine->prf(iter + "#" + std::to_string(realBst.getFrequency(iter)));
         readBatchMap[stKey] = iter;
         storage_keys.push_back(stKey);
@@ -405,6 +427,11 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
     }
 
     for(int i=0;i<F;) {
+        if (recording_alpha){
+            int previousTimeStamp = fakeBst.getKeyWithMinFrequencyRecordingAlpha();
+            int alpha=timeStamp.load()-previousTimeStamp;
+            file << "FAKE: "<<alpha << std::endl;
+        }
         auto fakeMinKey = fakeBst.getKeyWithMinFrequency();
         auto isPresentInRunningKeys = runningKeys.insertIfNotPresent(fakeMinKey);
         if(isPresentInRunningKeys == false) {
@@ -418,13 +445,13 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
 
 
     if (latency) {
-        rdtscllProxy(end);
-        double cycles = static_cast<double>(end - start);
-        std::string line("");
-        line.append(std::to_string((cycles / ticks_per_ns)) + "\n");
-        rdtscllProxy(start);
-        out_bst_latency << line;
-        out_bst_latency.flush();
+//        rdtscllProxy(end);
+//        double cycles = static_cast<double>(end - start);
+//        std::string line("");
+//        line.append(std::to_string((cycles / ticks_per_ns)) + "\n");
+//        rdtscllProxy(start);
+//        out_bst_latency << line;
+//        out_bst_latency.flush();
     }
 
 
@@ -469,7 +496,7 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
             auto keyAboutToGoToCache = readBatchMap[storage_keys[i]];
             std::string valueAboutToGoToCache = enc_engine->decryptNonDeterministic(responses[i]);
             promiseSatisfy[keyAboutToGoToCache] = valueAboutToGoToCache;
-
+            //NEWFEATURES 4
             if(std::find(keys_to_be_deleted.begin(), keys_to_be_deleted.end(), readBatchMap[storage_keys[i]]) != keys_to_be_deleted.end()){
                 realBst.removeKey(readBatchMap[storage_keys[i]]);
                 //print info
@@ -487,7 +514,7 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
             auto fakeWriteKey = readBatchMap[storage_keys[i]];
             promiseSatisfy[fakeWriteKey] = enc_engine->decryptNonDeterministic(responses[i]);
             writeBatchKeys.push_back(enc_engine->prf(fakeWriteKey + "#" + std::to_string(fakeBst.getFrequency(fakeWriteKey))));
-            writeBatchValues.push_back(enc_engine->encryptNonDeterministic(gen_random(1 + rand()%10)));
+            writeBatchValues.push_back(enc_engine->encryptNonDeterministic(gen_random(object_size_)));
         }
     }
     //print all writeBatchKeys
@@ -511,13 +538,13 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
     keysNotUsed.push(storage_keys);
 
     if (latency) {
-        rdtscllProxy(end);
-        double cycles = static_cast<double>(end - start);
-        std::string line("");
-        line.append(std::to_string((cycles / ticks_per_ns)) + "\n");
-        rdtscllProxy(start);
-        out_redis_latency << line;
-        out_redis_latency.flush();
+//        rdtscllProxy(end);
+//        double cycles = static_cast<double>(end - start);
+//        std::string line("");
+//        line.append(std::to_string((cycles / ticks_per_ns)) + "\n");
+//        rdtscllProxy(start);
+//        out_redis_latency << line;
+//        out_redis_latency.flush();
     }
 
     // if(cache.size() != (2*B)) {
@@ -655,7 +682,7 @@ void waffle_proxy::consumer_thread(int id, encryption_engine *enc_engine){
     int operations_serviced = 0;
     int previous_total_operations = 0;
     int total_operations = 0;
-//    std::cout << "Entering here to consumer thread" << std::endl;
+    std::cout << "Entering here to consumer thread" << std::endl;
     while (!finished_) {
         std::vector <operation> storage_batch;
         std::unordered_map<std::string, std::vector<std::shared_ptr<std::promise<std::string>>>> keyToPromiseMap;
@@ -688,6 +715,10 @@ void waffle_proxy::responder_thread(){
                 continue;
             }
             results.push_back(tuple.second.second[i].get());
+//            if(op_code==GET_BATCH)
+//                results.push_back("Batch Get Successfully.");
+//            else
+//                results.push_back(tuple.second.second[i].get());
 //            std::cout<<"\t\tResponding with seq: "<<seq<<" Opcode: "<<op_code <<" content: "<<results[i].substr(0,50)<<std::endl;
         }
 //        std::cout<<" Response with length of "<<results.size()<<std::endl;

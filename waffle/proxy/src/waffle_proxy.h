@@ -40,10 +40,11 @@
 
 
 
+
 class waffle_proxy : public proxy {
 public:
     int server_get_count = 0;
-    void init(const std::vector<std::string> &keys, const std::vector<std::string> &values, void ** args) override;
+    void init(const std::vector<std::string> &keys, const std::vector<std::string> &values,bool testing,bool recording_alpha, void ** args) override;
     void close() override;
     std::string get(const std::string &key) override;
     void put(const std::string &key, const std::string &value) override;
@@ -140,6 +141,12 @@ private:
     queue<std::pair<int, std::pair<const sequence_id&, std::vector<std::future<std::string>>>>> respond_queue_;
     queue<sequence_id> sequence_queue_;
     queue<std::vector<std::string>> keysNotUsed;
+
+
+
+
+    bool testing;
+    bool recording_alpha;
 };
 
 #endif //WAFFLE_PROXY_H

@@ -78,7 +78,8 @@ int main(int argc, char *argv[]) {
     int num_items = 10000;
     std::shared_ptr<proxy> proxy_ = std::make_shared<waffle_proxy>();
     int o;
-    while ((o = getopt(argc, argv, "h:p:s:n:v:b:c:t:o:d:z:q:l:m:r:y:f:a:i:")) != -1) {
+    bool testing = false, recording_alpha = false;
+    while ((o = getopt(argc, argv, "h:p:s:n:v:b:c:t:o:d:z:q:l:m:r:y:f:a:i:e:g")) != -1) {
         switch (o) {
             case 'h':
                 dynamic_cast<waffle_proxy&>(*proxy_).server_host_name_ = std::string(optarg);
@@ -134,6 +135,12 @@ int main(int argc, char *argv[]) {
             case 'i':
                 num_items = std::atoi(optarg);
                 break;
+            case 'e':
+                testing = true;
+                break;
+            case 'g':
+                recording_alpha = true;
+                break;
             default:
                 usage();
                 exit(-1);
@@ -165,7 +172,7 @@ int main(int argc, char *argv[]) {
     auto id_to_client = std::make_shared<thrift_response_client_map>();
     arguments[0] = &id_to_client;
     std::cout <<"Initializing Waffle" << std::endl;
-    dynamic_cast<waffle_proxy&>(*proxy_).init(keys, values, arguments);
+    dynamic_cast<waffle_proxy&>(*proxy_).init(keys, values, testing,recording_alpha,arguments);
     std::cout << "Initialized Waffle" << std::endl;
     auto proxy_server = thrift_server::create(proxy_, "waffle", id_to_client, PROXY_PORT, 1);
     std::thread proxy_serve_thread([&proxy_server] { proxy_server->serve(); });

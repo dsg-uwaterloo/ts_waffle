@@ -125,25 +125,24 @@ class TimeSeriesDataMap {
 public:
     int current_generating_item_index=0;
     int batch_size = 100;
-    static std::string generateDataForKey(const std::string& key, int object_size){
-        std::string return_dummy(object_size,'a');
-        return return_dummy;
-        std::string serializedData;
-        std::string dataType = DataType::get_data_type(key);
-
-        if (dataType == "float") {
-            auto data = TimeSeriesDataGenerator::generateData<float>(object_size);
-            serializedData = BinarySerializer::serialize(data);
-        } else if (dataType == "int") {
-            auto data = TimeSeriesDataGenerator::generateData<int>(object_size);
-            serializedData = BinarySerializer::serialize(data);
-        } else if (dataType == "bool") {
-            auto data = TimeSeriesDataGenerator::generateData<bool>(object_size); // Changed to bool for boolean type
-            serializedData = BinarySerializer::serialize(data);
-        } else {
-            throw std::invalid_argument("Unsupported data type in key: " + dataType);
-        }
-        return serializedData;
+    std::string generateDataForKey(const std::string& key){
+        return default_value;
+//        std::string serializedData;
+//        std::string dataType = DataType::get_data_type(key);
+//
+//        if (dataType == "float") {
+//            auto data = TimeSeriesDataGenerator::generateData<float>(object_size);
+//            serializedData = BinarySerializer::serialize(data);
+//        } else if (dataType == "int") {
+//            auto data = TimeSeriesDataGenerator::generateData<int>(object_size);
+//            serializedData = BinarySerializer::serialize(data);
+//        } else if (dataType == "bool") {
+//            auto data = TimeSeriesDataGenerator::generateData<bool>(object_size); // Changed to bool for boolean type
+//            serializedData = BinarySerializer::serialize(data);
+//        } else {
+//            throw std::invalid_argument("Unsupported data type in key: " + dataType);
+//        }
+//        return serializedData;
     }
 
 
@@ -151,7 +150,10 @@ public:
             : keys_(keys), generation_interval_(generation_interval), object_size_(object_size) {}
 
     TimeSeriesDataMap(const std::vector<std::string>& keys, int generation_interval, size_t object_size, int batch_size)
-            : keys_(keys), generation_interval_(generation_interval), object_size_(object_size), batch_size(batch_size) {}
+            : keys_(keys), generation_interval_(generation_interval), object_size_(object_size), batch_size(batch_size) {
+        std::string return_dummy(object_size,'a');
+        default_value=return_dummy;
+    }
 
     std::pair<std::vector<std::string>, std::vector<std::string>> generate_batch_TS_data(int batch_size) {
         std::vector<std::string> keys;
@@ -230,9 +232,10 @@ public:
     }
 
 private:
+    std::string default_value;
     long current_time_stamp=UNIX_TIMESTAMP::current_time();
     std::string generateDataForKey(const std::string& key) const {
-        return generateDataForKey(key, object_size_);
+        return generateDataForKey(key);
     }
     std::vector<std::string> keys_;
     double generation_interval_;

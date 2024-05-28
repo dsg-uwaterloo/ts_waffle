@@ -67,7 +67,10 @@ std::string FrequencySmoother::getKeyWithMinFrequency() {
 	std::lock_guard<std::mutex> lock(m_mutex_);
 	return accessTree.begin()->first;
 }
-
+int FrequencySmoother::getKeyWithMinFrequencyRecordingAlpha() {
+    std::lock_guard<std::mutex> lock(m_mutex_);
+    return accessTree.begin()->second;
+}
 void FrequencySmoother::incrementFrequency(std::string key) {
 	std::lock_guard<std::mutex> lock(m_mutex_);
 	accessTree.erase({key, accessFreqs[key]});
@@ -175,18 +178,21 @@ void FrequencySmoother::fetchUniqueItemIDs(std::vector<std::string> &results) {
 }
 
 bool FrequencySmoother::checkIfUniqueItemWithTimeStampExists(std::string &key) {
-    std::lock_guard<std::mutex> lock(itemTimeStampMutex);
-    std::string pattern = key.substr(0, key.length() - 11);
-    long timeStamp = std::stol(key.substr(key.length() - 10));
-    try {
-        std::set<long> timeStampSet = uniqueItemWithTimeStamp.at(pattern);
-        if (timeStampSet.find(timeStamp) != timeStampSet.end()) {
-            return true;
-        }
-        return false;
-    } catch (const std::out_of_range &e) {
-        return false;
-    }
+    //find key in accessFreqs
+    std::lock_guard<std::mutex> lock(m_mutex_);
+    return accessFreqs.find(key) != accessFreqs.end();
+//    std::lock_guard<std::mutex> lock(itemTimeStampMutex);
+//    std::string pattern = key.substr(0, key.length() - 11);
+//    long timeStamp = std::stol(key.substr(key.length() - 10));
+//    try {
+//        std::set<long> timeStampSet = uniqueItemWithTimeStamp.at(pattern);
+//        if (timeStampSet.find(timeStamp) != timeStampSet.end()) {
+//            return true;
+//        }
+//        return false;
+//    } catch (const std::out_of_range &e) {
+//        return false;
+//    }
 }
 
 std::string FrequencySmoother::getOldestKey(std::vector<std::string> keys_to_be_deleted) {

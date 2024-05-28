@@ -60,12 +60,12 @@ void Cache::insertIntoCache(std::string key, std::string value) {
     std::lock_guard<std::mutex> lock(m_mutex_);
 	if (cacheMap.count(key) == 0)
     {
-        if (cacheMap.size() == m_capacity)
-        {
-            std::string keyToBeRemoved = accessList.back().first;
-            accessList.pop_back();
-            cacheMap.erase(keyToBeRemoved);
-        }
+//        if (cacheMap.size() == m_capacity)
+//        {
+//            std::string keyToBeRemoved = accessList.back().first;
+//            accessList.pop_back();
+//            cacheMap.erase(keyToBeRemoved);
+//        }
     }
     else
     {

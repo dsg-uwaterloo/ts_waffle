@@ -51,6 +51,8 @@ public:
     bool checkIfUniqueItemWithTimeStampExists(std::string &key);
 
     std::string getOldestKey(std::vector<std::string> keys_to_be_deleted);
+
+    int getKeyWithMinFrequencyRecordingAlpha();
 };
 
 #endif

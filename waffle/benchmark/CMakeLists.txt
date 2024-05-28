@@ -7,6 +7,8 @@ set(UTILS_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../utils)
 include_directories(${STORAGE_INCLUDE} ${CLIENT_INCLUDE} ${PROXY_INCLUDE} ${BENCHMARK_INCLUDE} ${SERVICE_INCLUDE} ${UTILS_INCLUDE})
 
 
+include_directories(/usr/local/include)
+link_directories(/usr/local/lib)
 add_executable(proxy_benchmark
         src/TS_proxy_benchmark.cpp
 
@@ -91,4 +93,5 @@ target_link_libraries(proxy_benchmark
         ${BENCHMARK_INCLUDE_LIBRARIES}
         ${SERVICE_INCLUDE_LIBRARIES}
         ${CLIENT_INCLUDE_LIBRARIES}
-        Threads::Threads)
+        Threads::Threads
+        tacopie)
