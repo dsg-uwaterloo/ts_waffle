@@ -1,6 +1,7 @@
 //
 // Created by Peter Pan on 2/13/2024.
 //
+// compilation command: g++ TS_value_master_test.cpp utils.cpp -lboost_serialization -o TS_value_master_test
 #include "TS_value_master.h"
 #include <cassert>
 #include <iostream>
@@ -57,6 +58,41 @@ int main() {
         auto end = std::chrono::high_resolution_clock::now();
         //print time duration
         std::cout << "TimeSeriesDataMap tests passed. Time duration: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+    }
+
+    std::cout << "Testing DataPair Deserialization..." << std::endl;
+    {
+        auto data_pair = TimeSeriesDataMap::get_TS_datapair_from_file("../tracefiles/TS_data_binary.bin");
+        assert(data_pair[0].size() == data_pair[1].size());
+        std::cout << "Number of buckets: " << data_pair[0].size() << std::endl;
+        for (int i = 0; i < data_pair[0].size(); i++){
+            if (i % 999 == 0){
+                std::string key = data_pair[0][i];
+                std::cout << "Key: " << key << ", Values: ";
+                std::string data_type = DataType::get_data_type(key);
+                if (data_type == "int"){
+                    auto deserializedData = BinarySerializer::deserialize<int>(data_pair[1][i]);
+                    for (int j = 0; j < 10; j++){
+                        std::cout << deserializedData[j] << " ";
+                    }
+                    std::cout << "..." << std::endl;
+                }
+                else if (data_type == "float"){
+                    auto deserializedData = BinarySerializer::deserialize<float>(data_pair[1][i]);
+                    for (int j = 0; j < 10; j++){
+                        std::cout << deserializedData[j] << " ";
+                    }
+                    std::cout << "..." << std::endl;
+                }
+                else if (data_type == "bool"){
+                    auto deserializedData = BinarySerializer::deserialize(data_pair[1][i]);
+                    for (int j = 0; j < 10; j++){
+                        std::cout << deserializedData[j] << " ";
+                    }
+                    std::cout << "..." << std::endl;
+                }
+            }
+        }
     }
 
     std::cout << "All tests passed." << std::endl;

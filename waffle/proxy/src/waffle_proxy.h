@@ -112,10 +112,10 @@ public:
 private:
     std::string invalid_key_response_;
     std::vector<std::string> keys_to_be_deleted;
-    void remove_oldest_data(std::vector<operation> &storage_batch);
-    void create_security_batch(std::shared_ptr<queue <std::pair<operation, std::shared_ptr<std::promise<std::string>>>>> &op_queue,
-                                          std::vector<operation> &storage_batch,
-                                          std::unordered_map<std::string, std::vector<std::shared_ptr<std::promise<std::string>>>> &keyToPromiseMap, int& cacheMisses);
+    void remove_oldest_data(std::vector<operation> &storage_batch, std::string currentKey);
+    void create_security_batch(std::pair<operation, std::shared_ptr<std::promise<std::string>>> &operation_promise_pair,
+                                   std::vector<operation> &storage_batch,
+                               std::unordered_map<std::string, std::vector<std::shared_ptr<std::promise<std::string>>>> &keyToPromiseMap, int &cacheMisses, int request_id);
 
     void execute_batch(const std::vector<operation> &operations, std::unordered_map<std::string, std::vector<std::shared_ptr<std::promise<std::string>>>> &keyToPromiseMap, std::shared_ptr<storage_interface> storage_interface, encryption_engine *enc_engine, int id, int& cacheMisses);
     void consumer_thread(int id, encryption_engine *enc_engine);

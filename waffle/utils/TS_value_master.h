@@ -14,7 +14,10 @@
 #include <chrono>
 #include <iostream>
 #include "utils.h"
-
+#include <fstream>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/serialization/vector.hpp>
 
 class BinarySerializer {
 public:
@@ -40,7 +43,7 @@ public:
     // General template for arithmetic types excluding bool
     template<typename T>
     static typename std::enable_if<!std::is_same<T, bool>::value, std::vector<T>>::type deserialize(const std::string& binaryData) {
-        std::vector<T> data(binaryData.size() / sizeof(T));
+        std::vector<T> data(binaryData.size() / sizeof(T) + 1);
         std::memcpy(&data[0], &binaryData[0], binaryData.size());
         return data;
     }
@@ -126,23 +129,23 @@ public:
     int current_generating_item_index=0;
     int batch_size = 100;
     std::string generateDataForKey(const std::string& key){
-        return default_value;
-//        std::string serializedData;
-//        std::string dataType = DataType::get_data_type(key);
-//
-//        if (dataType == "float") {
-//            auto data = TimeSeriesDataGenerator::generateData<float>(object_size);
-//            serializedData = BinarySerializer::serialize(data);
-//        } else if (dataType == "int") {
-//            auto data = TimeSeriesDataGenerator::generateData<int>(object_size);
-//            serializedData = BinarySerializer::serialize(data);
-//        } else if (dataType == "bool") {
-//            auto data = TimeSeriesDataGenerator::generateData<bool>(object_size); // Changed to bool for boolean type
-//            serializedData = BinarySerializer::serialize(data);
-//        } else {
-//            throw std::invalid_argument("Unsupported data type in key: " + dataType);
-//        }
-//        return serializedData;
+        // return default_value;
+        std::string serializedData;
+        std::string dataType = DataType::get_data_type(key);
+
+        if (dataType == "float") {
+            auto data = TimeSeriesDataGenerator::generateData<float>(object_size_);
+            serializedData = BinarySerializer::serialize(data);
+        } else if (dataType == "int") {
+            auto data = TimeSeriesDataGenerator::generateData<int>(object_size_);
+            serializedData = BinarySerializer::serialize(data);
+        } else if (dataType == "bool") {
+            auto data = TimeSeriesDataGenerator::generateData<bool>(object_size_); // Changed to bool for boolean type
+            serializedData = BinarySerializer::serialize(data);
+        } else {
+            throw std::invalid_argument("Unsupported data type in key: " + dataType);
+        }
+        return serializedData;
     }
 
 
@@ -155,15 +158,129 @@ public:
         default_value=return_dummy;
     }
 
-    std::pair<std::vector<std::string>, std::vector<std::string>> generate_batch_TS_data(int batch_size) {
+    typedef std::vector<std::vector<std::string>> DataPair;
+
+    // Serialization function
+    template <class Archive>
+    void serialize(Archive &ar, DataPair &data_pair, const unsigned int version)
+    {
+        ar & data_pair;
+    }
+
+    std::pair<std::string, std::string> generate_TS_tracefile_put_query(std::unordered_map<long, std::vector<std::string>> &timestamp_map)
+    {
+        std::tuple<std::string, long, std::string> result = generate_TS_data();
+        std::string key = std::get<0>(result);
+        long timestamp = std::get<1>(result);
+        std::string value = std::get<2>(result);
+        timestamp_map[timestamp].push_back(key);
+        return {key + "@" + std::to_string(timestamp), value};
+    }
+
+    std::pair<std::string, std::string> generate_TS_tracefile_get_query(std::unordered_map<long, std::vector<std::string>> &timestamp_map)
+    {
+        std::vector<long> timestamps;
+        for (const auto &pair : timestamp_map){
+            timestamps.push_back(pair.first);
+        }
+        std::sort(timestamps.rbegin(), timestamps.rend());
+
+        std::vector<double> weights(timestamps.size());
+        double total_weight = 0.0;
+        for (size_t i = 0; i < timestamps.size(); ++i){
+            // weight assignment: exponential decay
+            weights[i] = std::exp(-5 * static_cast<double>(i) / timestamps.size());
+            total_weight += weights[i];
+        }
+        // Normalize the weights
+        for (auto &weight : weights) {
+            weight /= total_weight;
+        }
+
+        // Create a distribution based on the weights
+        std::discrete_distribution<> dist(weights.begin(), weights.end());
+        std::random_device rd;
+        std::mt19937 gen(rd());
+
+        // Sample an index based on the distribution
+        size_t sampled_index = dist(gen);
+        long timestamp = timestamps[sampled_index];
+        std::vector<std::string> keys_at_timestamp = timestamp_map[timestamp];
+        int key_index = std::rand() % keys_at_timestamp.size();
+        std::string key = keys_at_timestamp[key_index];
+        return {key + "@" + std::to_string(timestamp), ""};
+    }
+
+    void generate_TS_tracefile_binary(int row_count) {
+        int batch_count = row_count / batch_size;
+        std::cout << "batchsize" << batch_size << std::endl;
+        std::vector<std::string> keys;
+        std::vector<std::string> data;
+        std::unordered_map<long, std::vector<std::string>> timestamp_map;
+        int put_query_percentage = 50;
+        for (int i = 0; i < batch_count; i++) {
+            int rand_num = std::rand() % 100;
+            std::pair<std::string, std::string> result;
+            if (rand_num < put_query_percentage || i == 0)
+            {
+                // generate batch_size number of put queries
+                for (int j = 0; j < batch_size; j++) {
+                    result = generate_TS_tracefile_put_query(timestamp_map);
+                    keys.push_back(result.first);
+                    data.push_back(result.second);
+                    std::cout << "PUT " << result.first << std::endl;
+                }
+            }
+            else
+            {
+                for (int j = 0; j < batch_size; j++) {
+                    // generate batch_size number of get queries
+                    result = generate_TS_tracefile_get_query(timestamp_map);
+                    keys.push_back(result.first);
+                    data.push_back(result.second);
+                    std::cout << "GET " << result.first << std::endl;
+                }
+            }
+        }
+
+        DataPair data_pair = {keys, data};
+        // Serialize data to a file
+        std::ofstream outFile("../tracefiles/TS_data_binary.bin", std::ios::binary);
+        if (!outFile){
+            std::cerr << "Failed to open file for writing." << std::endl;
+            exit(1);
+        }
+        boost::archive::binary_oarchive oa(outFile);
+        oa << data_pair;
+        outFile.close();
+        std::cout << "Data serialized using Boost Serialization." << std::endl;
+    }
+
+    static std::vector<std::vector<std::string>> get_TS_datapair_from_file(std::string filepath) {
+        // Deserialize data from a file
+        std::ifstream inFile(filepath, std::ios::binary);
+        if (!inFile){
+            std::cerr << "Failed to open file for reading." << std::endl;
+            exit(1);
+        }
+        DataPair data_pair;
+        boost::archive::binary_iarchive ia(inFile);
+        ia >> data_pair;
+        inFile.close();
+        std::cout << "Data deserialized using Boost Serialization." << std::endl;
+        return data_pair;
+    }
+
+    std::pair<std::vector<std::string>, std::vector<std::string>> generate_batch_TS_data(int batch_size)
+    {
         std::vector<std::string> keys;
         std::vector<std::string> data;
         for (int i = 0; i < batch_size; i++) {
-            std::tuple<std::string, long, std::string> result = generate_TS_data_fast();
+            std::tuple<std::string, long, std::string> result = generate_TS_data();
             std::string key = std::get<0>(result);
             long timestamp = std::get<1>(result);
             std::string value = std::get<2>(result);
-//            std::cout << "Generated data for key: " << key+"@"+std::to_string(timestamp) << " at timestamp: " << timestamp << std::endl;
+            // std::cout << "Generated data for key: " << key+"@"+std::to_string(timestamp) << " at timestamp: " << timestamp << std::endl;
             keys.push_back(key+"@"+std::to_string(timestamp));
             data.push_back(value);
         }
@@ -181,17 +298,10 @@ public:
                 std::string key = last_generation_it.first;
                 int size = DataType::get_data_type_size(key);
                 int time_increase =1;// object_size_ / size * generation_interval_;
-                //print with probability 0.01
-//                if (rand() % 100 == 0) {
-//                    std::cout<<"key: "<<key<<std::endl;
-//                    std::cout<<"last_generation_time: "<<last_generation_time<<std::endl;
-//                    std::cout<<"duration_since_last_gen: "<<duration_since_last_gen<<std::endl;
-//                    std::cout<<"time_increase: "<<time_increase<<std::endl;
-//                }
                 if (duration_since_last_gen >= time_increase) {
                     auto data = generateDataForKey(key);
                     last_generation_time_[key] = last_generation_time + time_increase; // Update last generation time
-//                    std::cout<<"Old Key: "<<key<<" at time "<<last_generation_time + time_increase<<std::endl;
+                    // std::cout << "Generated data for key: " << key << std::endl;
                     return {key, last_generation_time + time_increase, data};
                 }
             }

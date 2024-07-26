@@ -50,7 +50,7 @@ public:
 	// mutable std::mutex m_mutex_freq;
     bool checkIfUniqueItemWithTimeStampExists(std::string &key);
 
-    std::string getOldestKey(std::vector<std::string> keys_to_be_deleted);
+    std::string getOldestKey(std::vector<std::string> keys_to_be_deleted, std::string currentKey);
 
     int getKeyWithMinFrequencyRecordingAlpha();
 };

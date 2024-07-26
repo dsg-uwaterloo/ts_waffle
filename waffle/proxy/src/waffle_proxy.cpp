@@ -238,11 +238,11 @@ void waffle_proxy::init(const std::vector<std::string> &keys, const std::vector<
 }
 
 //NEWFEATURES 1
-void waffle_proxy::remove_oldest_data(std::vector<operation> &storage_batch) {
-//    auto& bstMutex = realBst.getMutex();
+void waffle_proxy::remove_oldest_data(std::vector<operation> &storage_batch, std::string currentKey) {
+    // auto& bstMutex = realBst.getMutex();
     int state = 0;
-//        auto oldest_key_feq_pair = TS_get_oldest_key::get_oldest_key(realBst,keys_to_be_deleted);
-    std::string oldest_key = realBst.getOldestKey(keys_to_be_deleted);
+    // auto oldest_key_feq_pair = TS_get_oldest_key::get_oldest_key(realBst,keys_to_be_deleted);
+    std::string oldest_key = realBst.getOldestKey(keys_to_be_deleted, currentKey);
 
     bool isPresentInCache = false;
     auto val = cache.getValueWithoutPositionChangeNew(oldest_key, isPresentInCache);
@@ -280,53 +280,67 @@ void waffle_proxy::remove_oldest_data(std::vector<operation> &storage_batch) {
 
 }
 
-void waffle_proxy::create_security_batch(std::shared_ptr<queue <std::pair<operation, std::shared_ptr<std::promise<std::string>>>>> &op_queue,
+// only a GET query will have request_id
+void waffle_proxy::create_security_batch(std::pair<operation, std::shared_ptr<std::promise<std::string>>> &operation_promise_pair,
                                          std::vector<operation> &storage_batch,
-                                         std::unordered_map<std::string, std::vector<std::shared_ptr<std::promise<std::string>>>> &keyToPromiseMap, int& cacheMisses) {
-    if (op_queue->size() == 0) {
-        std::cout << "WARNING: You should never see this line on console! Queue size is 0" << std::endl;
-    } else {
-        struct operation operat;
-        auto operation_promise_pair = op_queue->pop();
-        auto currentKey = operation_promise_pair.first.key;
-        if(operation_promise_pair.first.value == "") {
-            // It's a GET
-            //NEWFEATURES 2
-            uint64_t start,end;
-            if(testing){
-                rdtscllProxy(start);
-            }
-            if (realBst.checkIfUniqueItemWithTimeStampExists(currentKey) == false) {
-                //print info
-//                std::cout<<"Key: "<<currentKey<<" is NOT present in the realBst"<<std::endl;
-                operation_promise_pair.second->set_value(invalid_key_response_);
-                return;
-            }
+                                         std::unordered_map<std::string, std::vector<std::shared_ptr<std::promise<std::string>>>> &keyToPromiseMap, int &cacheMisses, int request_id = -1)
+{
+    auto currentKey = operation_promise_pair.first.key;
+    if (operation_promise_pair.first.value == "")
+    {
+        // It's a GET
+        //NEWFEATURES 2
+        uint64_t start,end;
+        if(testing){
+            rdtscllProxy(start);
+        }
+        if (realBst.checkIfUniqueItemWithTimeStampExists(currentKey) == false) {
+            //print info
+        //    std::cout<<"Key: "<<currentKey<<" is NOT present in the realBst"<<std::endl;
+            operation_promise_pair.second->set_value(invalid_key_response_);
+            return;
+        }
 
-            if (testing){
-                rdtscllProxy(end);
-                double cycles = static_cast<double>(end - start);
-                std::cout<<"NEWFEATURES2 "<<cycles / ticks_per_ns<<std::endl;
+        if (testing){
+            rdtscllProxy(end);
+            double cycles = static_cast<double>(end - start);
+            std::cout<<"NEWFEATURES2 "<<cycles / ticks_per_ns<<std::endl;
+        }
+        // std::cout<<"\tReceived to get Key: "<<currentKey<<std::endl;
+        bool isPresentInCache = false;
+        auto val = cache.getValueWithoutPositionChangeNew(currentKey, isPresentInCache);
+        auto valEvicted = EvictedItems.getValue(currentKey);
+        if(isPresentInCache == true) {
+            try{
+                // put the value in get_cache, meaning that the user GET query is partly satisfied
+                // this is inserting into a separate cache only for storing partially satisfied GET queries
+                // this is not the proxy cache
+                runningKeys.insert_cache(request_id, currentKey, val, operation_promise_pair.second);
             }
-//            std::cout<<"\tReceived to get Key: "<<currentKey<<std::endl;
-            bool isPresentInCache = false;
-            auto val = cache.getValueWithoutPositionChangeNew(currentKey, isPresentInCache);
-            auto valEvicted = EvictedItems.getValue(currentKey);
-            if(isPresentInCache == true) {
-                operation_promise_pair.second->set_value(val);
+            catch(const std::exception& e){
+                // already satisfied
             }
-            else if(valEvicted != "") {
-                operation_promise_pair.second->set_value(valEvicted);
-            } else {
-                auto isPresentInRunningKeys = runningKeys.insertIfNotPresent(currentKey, operation_promise_pair.second);
-                if(isPresentInRunningKeys == false) {
-                    storage_batch.push_back(operation_promise_pair.first);
-                }
-                ++cacheMisses;
+        }
+        else if(valEvicted != "") {
+            try{
+                runningKeys.insert_cache(request_id, currentKey, valEvicted, operation_promise_pair.second);
             }
-            //check key if available, and add a dummy key if not available!
+            catch(const std::exception& e){
+                std::cerr << "Error in setting the value" << std::endl;
+            }
+            
         } else {
-            // It's a PUT request
+            auto isPresentInRunningKeys = runningKeys.insertIfNotPresent(currentKey, operation_promise_pair.second, request_id);
+            if(isPresentInRunningKeys == false) {
+                storage_batch.push_back(operation_promise_pair.first);
+            }
+            ++cacheMisses;
+        }
+        //check key if available, and add a dummy key if not available!
+    }
+    else
+    {
+        // It's a PUT request
 //            std::cout<<"PUT request"<<std::endl;
 //            bool isPresentInCache = false;
 //            auto val = cache.getValueWithoutPositionChangeNew(currentKey, isPresentInCache);
@@ -334,24 +348,23 @@ void waffle_proxy::create_security_batch(std::shared_ptr<queue <std::pair<operat
 //            if(isPresentInCache || valEvicted != "") {
 //                std::cout<<"Warning, the pushed key already exist"<<std::endl;
 //            }
-            //NEWFEATURES 3
-            uint64_t start,end;
-            if(testing){
-                rdtscllProxy(start);
-            }
-
-            remove_oldest_data(storage_batch);
-
-            if (testing){
-                rdtscllProxy(end);
-                double cycles = static_cast<double>(end - start);
-                std::cout<<"NEWFEATURES3 "<<cycles / ticks_per_ns<<std::endl;
-            }
-            cache.insertIntoCache(currentKey, operation_promise_pair.first.value);
-            realBst.insert(currentKey);
-            realBst.setFrequency(currentKey, timeStamp.load());
-            operation_promise_pair.second->set_value(cache.getValueWithoutPositionChange(currentKey));
+        //NEWFEATURES 3
+        uint64_t start,end;
+        if(testing){
+            rdtscllProxy(start);
         }
+
+        remove_oldest_data(storage_batch, currentKey);
+
+        if (testing){
+            rdtscllProxy(end);
+            double cycles = static_cast<double>(end - start);
+            std::cout<<"NEWFEATURES3 "<<cycles / ticks_per_ns<<std::endl;
+        }
+        cache.insertIntoCache(currentKey, operation_promise_pair.first.value);
+        realBst.insert(currentKey);
+        realBst.setFrequency(currentKey, timeStamp.load());
+        operation_promise_pair.second->set_value(cache.getValueWithoutPositionChange(currentKey));
     }
 };
 
@@ -413,7 +426,6 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
 //            counter++;
         }
     }
-
     for(auto& iter: realKeysNotInCache) {
         if (recording_alpha){
             int previousTimeStamp = realBst.getFrequency(iter);
@@ -425,7 +437,6 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
         storage_keys.push_back(stKey);
         realBst.setFrequency(iter, timeStamp.load());
     }
-
     for(int i=0;i<F;) {
         if (recording_alpha){
             int previousTimeStamp = fakeBst.getKeyWithMinFrequencyRecordingAlpha();
@@ -467,7 +478,6 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
 //    std::cout<<"Size of runningKeys: "<<runningKeys.size()<<std::endl;
 //    std::cout<<"Recently added key: "<<realBst.getRUKey()<<std::endl;
     std::unordered_set<std::string> tempEvictedItems;
-
 
     auto responses = storage_interface->get_batch(storage_keys);
     for(int i = 0 ; i < storage_keys.size(); i++){
@@ -522,21 +532,18 @@ void waffle_proxy::execute_batch(const std::vector<operation> &operations, std::
 //        std::cout << "Going to write Key at "<<i<<": "<<writeBatchKeys[i]<<std::endl;
 //    }
     storage_interface_->put_batch(writeBatchKeys, writeBatchValues);
-
     for(auto& it: tempEvictedItems) {
         EvictedItems.erase(it);
     }
     //print size before clear promises
 //    std::cout<<"Size of promiseSatisfy before clear promises: "<<runningKeys.size()<<std::endl;
-
     for(auto& it: promiseSatisfy) {
         // std::cout << "Clearing promises " << std::endl;
-        runningKeys.clearPromises(it.first, it.second);
+        runningKeys.tryClearPromises(it.first, it.second);
     }
 //    std::cout<<"Size of promiseSatisfy after clear promises: "<<runningKeys.size()<<std::endl;
 
     keysNotUsed.push(storage_keys);
-
     if (latency) {
 //        rdtscllProxy(end);
 //        double cycles = static_cast<double>(end - start);
@@ -689,12 +696,34 @@ void waffle_proxy::consumer_thread(int id, encryption_engine *enc_engine){
         //std::unordered_set<std::string> tempSet;
         int i=0;
         int cacheMisses = 0;
+        int request_id = 0;
         while (i < R && !finished_) {
             if(operation_queues_[id]->size() > 0) {
-                create_security_batch(operation_queues_[id], storage_batch, keyToPromiseMap, cacheMisses);
-                ++i;
+                auto operation_promise_pair = operation_queues_[id]->pop();
+                auto currentKey = operation_promise_pair.first.key;
+                if (operation_promise_pair.first.value == "")
+                {
+                    // it's a GET
+                    // NEWFEATURES split user get query to multiple db get query
+                    // TODO for loop based on GET range
+                    for (int j = 0; j < 2; j++) {
+                        // TODO the sub_operation should be constructed from operation pair, with the same operation.seq_id, but different operation.key
+                        operation sub_operation(operation_promise_pair.first);
+                        std::pair<operation, std::shared_ptr<std::promise<std::string>>> sub_operation_promise_pair(sub_operation, operation_promise_pair.second);
+                        create_security_batch(sub_operation_promise_pair, storage_batch, keyToPromiseMap, cacheMisses, request_id);
+                        ++i;
+                    }
+                    ++request_id;
+                }
+                else {
+                    // it's a PUT
+                    create_security_batch(operation_promise_pair, storage_batch, keyToPromiseMap, cacheMisses);
+                    ++i;
+                }
             }
         }
+        // some promises may be cleared because all values are in proxy cache.
+        runningKeys.tryClearAllPromises();
         execute_batch(storage_batch, keyToPromiseMap, storage_interface_, enc_engine, id, cacheMisses);
     }
 

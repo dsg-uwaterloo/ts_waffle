@@ -4,11 +4,10 @@ set(PROXY_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../proxy/src)
 set(SERVICE_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../service/src)
 set(BENCHMARK_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(UTILS_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../utils)
-include_directories(${STORAGE_INCLUDE} ${CLIENT_INCLUDE} ${PROXY_INCLUDE} ${BENCHMARK_INCLUDE} ${SERVICE_INCLUDE} ${UTILS_INCLUDE})
+set(CONFIG_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../config)
+include_directories(${STORAGE_INCLUDE} ${CLIENT_INCLUDE} ${PROXY_INCLUDE} ${BENCHMARK_INCLUDE} ${SERVICE_INCLUDE} ${UTILS_INCLUDE} ${CONFIG_INCLUDE})
 
 
-include_directories(/usr/local/include)
-link_directories(/usr/local/lib)
 add_executable(proxy_benchmark
         src/TS_proxy_benchmark.cpp
 
@@ -65,12 +64,15 @@ add_executable(proxy_benchmark
        ../utils/TS_key_master.h
         ../utils/TS_search_master.h
         ../utils/utils.cpp
-)
-find_library(THRIFTNB_LIB NAMES thriftnb PATHS /usr/local/lib)
-message(THRIFTNB_LIB ${THRIFTNB_LIB})
-find_library(EVENT_LIB NAMES event PATHS /usr/local/lib)
 
-add_dependencies(proxy_benchmark cpp_redis libcuckoo openssl_ep)
+        ../config/tsconfig.h
+        ../config/tsconfig.cpp
+)
+
+find_package(Boost REQUIRED COMPONENTS serialization)
+include_directories(${Boost_INCLUDE_DIRS})
+
+add_dependencies(proxy_benchmark cpp_redis libcuckoo openssl_ep thrift_ep)
 target_link_libraries(proxy_benchmark
         ${THRIFTNB_LIB}
         ${EVENT_LIB}
@@ -93,5 +95,5 @@ target_link_libraries(proxy_benchmark
         ${BENCHMARK_INCLUDE_LIBRARIES}
         ${SERVICE_INCLUDE_LIBRARIES}
         ${CLIENT_INCLUDE_LIBRARIES}
-        Threads::Threads
-        tacopie)
+        ${Boost_LIBRARIES}
+        Threads::Threads)

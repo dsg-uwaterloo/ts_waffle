@@ -195,29 +195,30 @@ bool FrequencySmoother::checkIfUniqueItemWithTimeStampExists(std::string &key) {
 //    }
 }
 
-std::string FrequencySmoother::getOldestKey(std::vector<std::string> keys_to_be_deleted) {
-    long current_oldest_timestamp= std::numeric_limits<long>::max();
+std::string FrequencySmoother::getOldestKey(std::vector<std::string> keys_to_be_deleted, std::string currentKey) {
     std::string return_key="";
     {
         std::lock_guard<std::mutex> lock(itemTimeStampMutex);
-        for (auto &it : uniqueItemWithTimeStamp) {
-            for (auto &timestamp : it.second) {
-                if (current_oldest_timestamp<= timestamp){
-                    break;
-                }
-                std::string current_oldest_key = it.first + "@" + std::to_string(timestamp);
-                if (std::find(keys_to_be_deleted.begin(), keys_to_be_deleted.end(), current_oldest_key) != keys_to_be_deleted.end()) {
-                    continue;
-                }
-                current_oldest_timestamp = timestamp;
-                return_key = current_oldest_key;
-                if (current_oldest_timestamp==overall_oldest_timestamp){
-                    return return_key;
-                }
-            }
-        }
+        // for (auto &it : uniqueItemWithTimeStamp) {
+        //     for (auto &timestamp : it.second) {
+        //         if (current_oldest_timestamp<= timestamp){
+        //             break;
+        //         }
+        //         std::string current_oldest_key = it.first + "@" + std::to_string(timestamp);
+        //         if (std::find(keys_to_be_deleted.begin(), keys_to_be_deleted.end(), current_oldest_key) != keys_to_be_deleted.end()) {
+        //             continue;
+        //         }
+        //         current_oldest_timestamp = timestamp;
+        //         return_key = current_oldest_key;
+        //         if (current_oldest_timestamp==overall_oldest_timestamp){
+        //             return return_key;
+        //         }
+        //     }
+        // }
+        auto timestamps = uniqueItemWithTimeStamp[currentKey.substr(0, currentKey.length() - 11)];
+        long oldestTimestamp = *timestamps.begin();
+        return_key = currentKey.substr(0, currentKey.length() - 11) + "@" + std::to_string(oldestTimestamp);
+        return return_key;
     }
-    overall_oldest_timestamp=current_oldest_timestamp;
-    std::cout<<"Overall oldest timestamp changed: "<<overall_oldest_timestamp<<std::endl;
     return return_key;
 }

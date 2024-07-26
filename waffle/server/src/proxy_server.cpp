@@ -9,6 +9,8 @@
 #include "TS_value_master.h"
 #include "TS_key_master.h"
 
+#include "tsconfig.h"
+
 
 #define HOST "127.0.0.1"
 #define PROXY_PORT 9090
@@ -72,10 +74,10 @@ void usage() {
 
 int main(int argc, char *argv[]) {
     std::cout << std::boolalpha;
-    int client_batch_size = 50;
+    int client_batch_size = benchmarkConfig::client_batch_size;
     std::atomic<int> xput;
     std::atomic_init(&xput, 0);
-    int num_items = 10000;
+    int num_items = benchmarkConfig::no_items;
     std::shared_ptr<proxy> proxy_ = std::make_shared<waffle_proxy>();
     int o;
     bool testing = false, recording_alpha = false;
@@ -86,54 +88,6 @@ int main(int argc, char *argv[]) {
                 break;
             case 'p':
                 dynamic_cast<waffle_proxy&>(*proxy_).server_port_ = std::atoi(optarg);
-                break;
-            case 'a':
-                dynamic_cast<waffle_proxy&>(*proxy_).num_cores = std::atoi(optarg);
-                break;
-            case 'c':
-                dynamic_cast<waffle_proxy&>(*proxy_).cacheBatches = std::atoi(optarg);
-                break;
-            case 'z':
-                dynamic_cast<waffle_proxy&>(*proxy_).security_batch_size_ = std::atoi(optarg);
-                break;
-            // case 'c':
-            //     dynamic_cast<waffle_proxy&>(*proxy_).storage_batch_size_ = std::atoi(optarg);
-            //     break;
-            case 't':
-                dynamic_cast<waffle_proxy&>(*proxy_).p_threads_ = std::atoi(optarg);
-                break;
-            case 'o':
-                dynamic_cast<waffle_proxy&>(*proxy_).output_location_ = std::string(optarg);
-                break;
-            case 'q':
-                client_batch_size = std::atoi(optarg);
-                break;
-            case 'l':
-                dynamic_cast<waffle_proxy&>(*proxy_).trace_location_ = std::string(optarg);
-                break;
-            case 'y':
-                dynamic_cast<waffle_proxy&>(*proxy_).latency = true;
-                break;
-            case 'b':
-                dynamic_cast<waffle_proxy&>(*proxy_).B = std::atoi(optarg);
-                break;
-            case 'r':
-                dynamic_cast<waffle_proxy&>(*proxy_).R = std::atoi(optarg);
-                break;
-            case 'f':
-                dynamic_cast<waffle_proxy&>(*proxy_).F = std::atoi(optarg);
-                break;
-            case 'n':
-                dynamic_cast<waffle_proxy&>(*proxy_).N = std::atoi(optarg);
-                break;
-            case 'd':
-                dynamic_cast<waffle_proxy&>(*proxy_).D = std::atoi(optarg);
-                break;
-            case 's':
-                dynamic_cast<waffle_proxy&>(*proxy_).object_size = std::atoi(optarg);
-                break;
-            case 'i':
-                num_items = std::atoi(optarg);
                 break;
             case 'e':
                 testing = true;
@@ -147,12 +101,26 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    dynamic_cast<waffle_proxy&>(*proxy_).num_cores = 1;
+    dynamic_cast<waffle_proxy &>(*proxy_).cacheBatches = waffleConfig::cacheBatches;
+    dynamic_cast<waffle_proxy &>(*proxy_).security_batch_size_ = waffleConfig::security_batch_size;
+    dynamic_cast<waffle_proxy &>(*proxy_).p_threads_ = waffleConfig::p_threads;
+    dynamic_cast<waffle_proxy &>(*proxy_).output_location_ = waffleConfig::output_location;
+    dynamic_cast<waffle_proxy &>(*proxy_).trace_location_ = waffleConfig::trace_location;
+    dynamic_cast<waffle_proxy &>(*proxy_).latency = waffleConfig::latency;
+    dynamic_cast<waffle_proxy &>(*proxy_).B = waffleConfig::B;
+    dynamic_cast<waffle_proxy &>(*proxy_).R = waffleConfig::R;
+    dynamic_cast<waffle_proxy &>(*proxy_).F = waffleConfig::F;
+    dynamic_cast<waffle_proxy &>(*proxy_).N = waffleConfig::N;
+    dynamic_cast<waffle_proxy &>(*proxy_).D = waffleConfig::D;
+    dynamic_cast<waffle_proxy &>(*proxy_).object_size = waffleConfig::object_size;
+
     void *arguments[1];
-//    assert(dynamic_cast<waffle_proxy&>(*proxy_).trace_location_ != "");
+    //    assert(dynamic_cast<waffle_proxy&>(*proxy_).trace_location_ != "");
     std::vector<std::string> keys;
     std::vector<std::string> values;
     if (dynamic_cast<waffle_proxy&>(*proxy_).trace_location_ == "") {
-        int num_per_item = dynamic_cast<waffle_proxy&>(*proxy_).N / num_items;
+        int num_per_item = dynamic_cast<waffle_proxy &>(*proxy_).N / num_items;
         std::cout<<"Num per item: "<<num_per_item<<std::endl;
         std::vector<std::string> items;
         ItemIdGenerator::read_item_ids(items, "tracefiles/TS_ItemID_10000.txt", num_items);

@@ -3,10 +3,11 @@ set(PROXY_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../proxy/src)
 set(SERVICE_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../service/src)
 set(SERVER_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(UTILS_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../utils)
+set(CONFIG_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../config)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-include_directories(${STORAGE_INCLUDE} ${PROXY_INCLUDE} ${SERVICE_INCLUDE} ${SERVER_INCLUDE} ${UTILS_INCLUDE})
+include_directories(${STORAGE_INCLUDE} ${PROXY_INCLUDE} ${SERVICE_INCLUDE} ${SERVER_INCLUDE} ${UTILS_INCLUDE} ${CONFIG_INCLUDE})
 
 
 add_executable(proxy_server
@@ -55,11 +56,14 @@ add_executable(proxy_server
         ../service/src/thrift_utils.h
         ../utils/TS_get_oldest_key.h
         ../utils/TS_value_master.h
-        ../utils/TS_key_master.h)
-add_dependencies(proxy_server libcuckoo)
-find_library(THRIFTNB_LIB NAMES thriftnb PATHS /usr/local/lib)
-message(THRIFTNB_LIB ${THRIFTNB_LIB})
-find_library(EVENT_LIB NAMES event PATHS /usr/local/lib)
+        ../utils/TS_key_master.h
+        
+        ../config/tsconfig.h
+        ../config/tsconfig.cpp
+        )
+add_dependencies(proxy_server libcuckoo thrift_ep)
+find_package(Boost REQUIRED COMPONENTS serialization)
+include_directories(${Boost_INCLUDE_DIRS})
 
 target_link_libraries(proxy_server
 
@@ -84,4 +88,5 @@ target_link_libraries(proxy_server
         ${CLIENT_INCLUDE_LIBRARIES}
         ${THRIFTNB_LIB}
         ${EVENT_LIB}
+        ${Boost_LIBRARIES}
         Threads::Threads)
