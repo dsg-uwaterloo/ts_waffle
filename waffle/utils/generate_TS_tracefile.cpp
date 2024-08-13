@@ -10,11 +10,11 @@
 #include "TS_key_master.h"
 
 int main() {
-    int no_items = 1000;
+    int no_items = 10;
     int generation_interval = 50;
-    int object_size = 1024;
-    int client_batch_size = 50;
-    int row_count = 100000;  // generate {row_count} buckets of time series data
+    int object_size = 100;
+    int client_batch_size = 5;
+    int row_count = 500;  // generate {row_count} buckets of time series data
 
     std::vector<std::string> keys;
     ItemIdGenerator::read_item_ids(keys, "../tracefiles/TS_ItemID_10000.txt", no_items);

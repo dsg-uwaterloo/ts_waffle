@@ -66,12 +66,15 @@ int main() {
         assert(data_pair[0].size() == data_pair[1].size());
         std::cout << "Number of buckets: " << data_pair[0].size() << std::endl;
         for (int i = 0; i < data_pair[0].size(); i++){
-            if (i % 999 == 0){
+            if (i % 9 == 0){
                 std::string key = data_pair[0][i];
                 std::cout << "Key: " << key << ", Values: ";
                 std::string data_type = DataType::get_data_type(key);
                 if (data_type == "int"){
                     auto deserializedData = BinarySerializer::deserialize<int>(data_pair[1][i]);
+                    if (deserializedData.size() == 0) {
+                        continue;
+                    }
                     for (int j = 0; j < 10; j++){
                         std::cout << deserializedData[j] << " ";
                     }
@@ -79,6 +82,9 @@ int main() {
                 }
                 else if (data_type == "float"){
                     auto deserializedData = BinarySerializer::deserialize<float>(data_pair[1][i]);
+                    if (deserializedData.size() == 0) {
+                        continue;
+                    }
                     for (int j = 0; j < 10; j++){
                         std::cout << deserializedData[j] << " ";
                     }
@@ -86,6 +92,9 @@ int main() {
                 }
                 else if (data_type == "bool"){
                     auto deserializedData = BinarySerializer::deserialize(data_pair[1][i]);
+                    if (deserializedData.size() == 0) {
+                        continue;
+                    }
                     for (int j = 0; j < 10; j++){
                         std::cout << deserializedData[j] << " ";
                     }

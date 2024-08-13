@@ -118,6 +118,7 @@ private:
                                std::unordered_map<std::string, std::vector<std::shared_ptr<std::promise<std::string>>>> &keyToPromiseMap, int &cacheMisses, int request_id);
 
     void execute_batch(const std::vector<operation> &operations, std::unordered_map<std::string, std::vector<std::shared_ptr<std::promise<std::string>>>> &keyToPromiseMap, std::shared_ptr<storage_interface> storage_interface, encryption_engine *enc_engine, int id, int& cacheMisses);
+    std::vector<std::string> get_split_keys(std::string get_key);
     void consumer_thread(int id, encryption_engine *enc_engine);
     void responder_thread();
     void clearThread();

@@ -28,6 +28,30 @@ FrequencySmoother::FrequencySmoother(bool needTimeStamp) : accessTree(freqCmp){
     this->needTimeStamp=needTimeStamp;
 }
 
+std::pair<std::string, long> get_key_timestamp_split(std::string key) {
+    size_t at_pos = key.find('@');
+    
+    // Check if '@' was found and is not at the beginning or end
+    if (at_pos == std::string::npos || at_pos == 0 || at_pos == key.length() - 1) {
+        throw std::invalid_argument("Invalid key format. Expected format: something@123");
+    }
+    
+    // Split the string into two parts
+    std::string key_part = key.substr(0, at_pos);
+    std::string timestamp_part = key.substr(at_pos + 1);
+    
+    // Convert the second part to a long
+    long timestamp;
+    try {
+        timestamp = std::stol(timestamp_part);
+    } catch (const std::exception& e) {
+        throw std::invalid_argument("Invalid timestamp format in key: " + std::string(e.what()));
+    }
+    
+    // Return as a pair
+    return std::make_pair(key_part, timestamp);
+}
+
 void FrequencySmoother::insert(std::string key) {
     {
         std::lock_guard<std::mutex> lock(m_mutex_);
@@ -40,11 +64,11 @@ void FrequencySmoother::insert(std::string key) {
     }
     if (needTimeStamp){
         std::lock_guard<std::mutex> lock(itemTimeStampMutex);
-        std::string keyWithoutTimeStamp = key.substr(0, key.length() - 11);
+        std::string keyWithoutTimeStamp = get_key_timestamp_split(key).first;
         if(uniqueItemWithTimeStamp.find(keyWithoutTimeStamp) == uniqueItemWithTimeStamp.end()) {
             uniqueItemWithTimeStamp[keyWithoutTimeStamp] = std::set<long>();
         }
-        uniqueItemWithTimeStamp[keyWithoutTimeStamp].insert(std::stol(key.substr(key.length() - 10)));
+        uniqueItemWithTimeStamp[keyWithoutTimeStamp].insert(get_key_timestamp_split(key).second);
     }
 
     //print info
@@ -98,9 +122,9 @@ void FrequencySmoother::removeKey(std::string key) {
     }
     if(needTimeStamp){
         std::lock_guard<std::mutex> lock(itemTimeStampMutex);
-        std::string keyWithoutTimeStamp = key.substr(0, key.length() - 11);
+        std::string keyWithoutTimeStamp =  get_key_timestamp_split(key).first;
         if(uniqueItemWithTimeStamp.find(keyWithoutTimeStamp) != uniqueItemWithTimeStamp.end()) {
-            uniqueItemWithTimeStamp[keyWithoutTimeStamp].erase(std::stol(key.substr(key.length() - 10)));
+            uniqueItemWithTimeStamp[keyWithoutTimeStamp].erase(get_key_timestamp_split(key).second);
             if(uniqueItemWithTimeStamp[keyWithoutTimeStamp].empty()) {
                 uniqueItemWithTimeStamp.erase(keyWithoutTimeStamp);
             }
@@ -113,9 +137,9 @@ void FrequencySmoother::removeKey_without_mutex(std::string key) {
     accessFreqs.erase(key);
     if(needTimeStamp){
         std::lock_guard<std::mutex> lock(itemTimeStampMutex);
-        std::string keyWithoutTimeStamp = key.substr(0, key.length() - 11);
+        std::string keyWithoutTimeStamp =  get_key_timestamp_split(key).first;
         if(uniqueItemWithTimeStamp.find(keyWithoutTimeStamp) != uniqueItemWithTimeStamp.end()) {
-            uniqueItemWithTimeStamp[keyWithoutTimeStamp].erase(std::stol(key.substr(key.length() - 10)));
+            uniqueItemWithTimeStamp[keyWithoutTimeStamp].erase(get_key_timestamp_split(key).second);
             if(uniqueItemWithTimeStamp[keyWithoutTimeStamp].empty()) {
                 uniqueItemWithTimeStamp.erase(keyWithoutTimeStamp);
             }
@@ -215,10 +239,14 @@ std::string FrequencySmoother::getOldestKey(std::vector<std::string> keys_to_be_
         //         }
         //     }
         // }
-        auto timestamps = uniqueItemWithTimeStamp[currentKey.substr(0, currentKey.length() - 11)];
+        auto timestamps = uniqueItemWithTimeStamp[ get_key_timestamp_split(currentKey).first];
         long oldestTimestamp = *timestamps.begin();
-        return_key = currentKey.substr(0, currentKey.length() - 11) + "@" + std::to_string(oldestTimestamp);
+        return_key =  get_key_timestamp_split(currentKey).first + "@" + std::to_string(oldestTimestamp);
         return return_key;
     }
     return return_key;
+}
+
+std::set<long> FrequencySmoother::get_timestamp_for_key(std::string key) {
+    return uniqueItemWithTimeStamp[key];
 }

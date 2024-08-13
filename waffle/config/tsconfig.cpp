@@ -19,10 +19,10 @@ namespace waffleConfig
     std::string output_location = "log";
     std::string trace_location = "";
     bool latency = true;
-    int B = 250;
-    int R = 125;
-    int F = 50;
+    int B = 1200;
+    int R = 800;
+    int F = 100;
     int N = 100000;
-    int D = 35000;
+    int D = 100000;
     int object_size = 1024;
 }

@@ -1,3 +1,4 @@
+#include <sstream>
 #include "waffle_proxy.h"
 void randomize_map(const std::unordered_map<std::string, std::string>& input_map, std::vector<std::string>& keys, std::vector<std::string>& values) {
     for (const auto& it : input_map) {
@@ -685,6 +686,47 @@ std::future<std::string> waffle_proxy::put_future(int queue_id, const std::strin
     return waiter;
 };
 
+std::vector<std::string> waffle_proxy::get_split_keys(std::string get_key) {
+    std::stringstream ss(get_key);
+    std::string part;
+    std::vector<std::string> parts;
+
+    // Split the string by '@'
+    while (std::getline(ss, part, '@')) {
+        parts.push_back(part);
+        std::cerr << part<< std::endl;
+    }
+    std::string key_name = parts[0];
+    long start_timestamp = std::stol(parts[1]);
+    long end_timestamp = std::stol(parts[2]);
+    std::set<long> available_timestamps = realBst.get_timestamp_for_key(key_name);
+    std::vector<long> timestamps_vector(available_timestamps.begin(), available_timestamps.end());
+    std::vector<long> db_timestamps;
+
+    // Sort the available_timestamps
+    std::sort(timestamps_vector.begin(), timestamps_vector.end());
+
+    // Find the smallest timestamp just smaller than start_timestamp
+    auto lower_bound_it = std::lower_bound(timestamps_vector.begin(), timestamps_vector.end(), start_timestamp);
+    if (lower_bound_it != timestamps_vector.begin()) {
+        --lower_bound_it;
+    }
+    // Find the largest timestamp just bigger than end_timestamp
+    auto upper_bound_it = std::upper_bound(timestamps_vector.begin(), timestamps_vector.end(), end_timestamp);
+
+    // Collect the timestamps in the range
+    if (lower_bound_it < upper_bound_it) {
+        db_timestamps.assign(lower_bound_it, upper_bound_it);
+    }
+
+    // Create the vector with key_name@timestamp
+    std::vector<std::string> formatted_timestamps;
+    for (long timestamp : db_timestamps) {
+        formatted_timestamps.push_back(key_name + "@" + std::to_string(timestamp));
+    }
+    return formatted_timestamps;
+}
+
 void waffle_proxy::consumer_thread(int id, encryption_engine *enc_engine){
     int operations_serviced = 0;
     int previous_total_operations = 0;
@@ -706,9 +748,12 @@ void waffle_proxy::consumer_thread(int id, encryption_engine *enc_engine){
                     // it's a GET
                     // NEWFEATURES split user get query to multiple db get query
                     // TODO for loop based on GET range
-                    for (int j = 0; j < 2; j++) {
-                        // TODO the sub_operation should be constructed from operation pair, with the same operation.seq_id, but different operation.key
-                        operation sub_operation(operation_promise_pair.first);
+                    std::vector<std::string> db_keys = get_split_keys(currentKey);
+                    for (int j = 0; j < db_keys.size(); j++) {
+                        // TODO the sub_operation should be constructed from operation pair, with the same request_id, but different operation.key
+                        struct operation sub_operation;
+                        sub_operation.key = db_keys[j];
+                        sub_operation.value = "";
                         std::pair<operation, std::shared_ptr<std::promise<std::string>>> sub_operation_promise_pair(sub_operation, operation_promise_pair.second);
                         create_security_batch(sub_operation_promise_pair, storage_batch, keyToPromiseMap, cacheMisses, request_id);
                         ++i;

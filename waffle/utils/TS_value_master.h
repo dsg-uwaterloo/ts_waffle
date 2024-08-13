@@ -45,7 +45,9 @@ public:
     static typename std::enable_if<!std::is_same<T, bool>::value, std::vector<T>>::type deserialize(const std::string& binaryData) {
         std::vector<T> data(binaryData.size() / sizeof(T) + 1);
         std::memcpy(&data[0], &binaryData[0], binaryData.size());
-        return data;
+        std::vector<T> sliced_data(data.begin(), data.end() - 1);
+        return sliced_data;
+        
     }
 
     // Specialization for bool
@@ -167,48 +169,38 @@ public:
         ar & data_pair;
     }
 
-    std::pair<std::string, std::string> generate_TS_tracefile_put_query(std::unordered_map<long, std::vector<std::string>> &timestamp_map)
+    std::pair<std::string, std::string> generate_TS_tracefile_put_query(std::string key, int start_timestamp)
     {
         std::tuple<std::string, long, std::string> result = generate_TS_data();
-        std::string key = std::get<0>(result);
-        long timestamp = std::get<1>(result);
-        std::string value = std::get<2>(result);
-        timestamp_map[timestamp].push_back(key);
-        return {key + "@" + std::to_string(timestamp), value};
+        std::string value = generateDataForKey(key);
+        return {key + "@" + std::to_string(start_timestamp), value};
     }
 
-    std::pair<std::string, std::string> generate_TS_tracefile_get_query(std::unordered_map<long, std::vector<std::string>> &timestamp_map)
+    std::pair<std::string, std::string> generate_TS_tracefile_get_query(std::string key, long latest_timestamp)
     {
-        std::vector<long> timestamps;
-        for (const auto &pair : timestamp_map){
-            timestamps.push_back(pair.first);
-        }
-        std::sort(timestamps.rbegin(), timestamps.rend());
-
-        std::vector<double> weights(timestamps.size());
-        double total_weight = 0.0;
-        for (size_t i = 0; i < timestamps.size(); ++i){
-            // weight assignment: exponential decay
-            weights[i] = std::exp(-5 * static_cast<double>(i) / timestamps.size());
-            total_weight += weights[i];
-        }
-        // Normalize the weights
-        for (auto &weight : weights) {
-            weight /= total_weight;
-        }
-
-        // Create a distribution based on the weights
-        std::discrete_distribution<> dist(weights.begin(), weights.end());
         std::random_device rd;
         std::mt19937 gen(rd());
+        
+        // Exponential distribution with rate parameter (lambda)
+        std::exponential_distribution<> exp_dist(5.0); // lambda = 5.0 for decay
+        
+        // Function to map a continuous exponential sample to an integer in the range [0, latest_timestamp]
+        auto sample_exponential = [&](std::mt19937 &gen, long latest_timestamp) {
+            double sample = exp_dist(gen);
+            double scaled_sample = (1.0 - std::exp(-5.0 * sample)) * (latest_timestamp + 1);
+            return std::min(static_cast<long>(scaled_sample), latest_timestamp);
+        };
+        
+        // Sample two integers
+        long first_int = sample_exponential(gen, latest_timestamp);
+        long second_int = sample_exponential(gen, latest_timestamp);
+        
+        // Ensure they are in ascending order
+        if (first_int > second_int) {
+            std::swap(first_int, second_int);
+        }
 
-        // Sample an index based on the distribution
-        size_t sampled_index = dist(gen);
-        long timestamp = timestamps[sampled_index];
-        std::vector<std::string> keys_at_timestamp = timestamp_map[timestamp];
-        int key_index = std::rand() % keys_at_timestamp.size();
-        std::string key = keys_at_timestamp[key_index];
-        return {key + "@" + std::to_string(timestamp), ""};
+        return {key + "@" + std::to_string(first_int) + "@" + std::to_string(second_int), ""};
     }
 
     void generate_TS_tracefile_binary(int row_count) {
@@ -216,30 +208,38 @@ public:
         std::cout << "batchsize" << batch_size << std::endl;
         std::vector<std::string> keys;
         std::vector<std::string> data;
-        std::unordered_map<long, std::vector<std::string>> timestamp_map;
+        long latest_timestamp = 0;
         int put_query_percentage = 50;
-        for (int i = 0; i < batch_count; i++) {
+        for (int i = 0; i < batch_count;) {
             int rand_num = std::rand() % 100;
             std::pair<std::string, std::string> result;
             if (rand_num < put_query_percentage || i == 0)
             {
-                // generate batch_size number of put queries
-                for (int j = 0; j < batch_size; j++) {
-                    result = generate_TS_tracefile_put_query(timestamp_map);
-                    keys.push_back(result.first);
-                    data.push_back(result.second);
-                    std::cout << "PUT " << result.first << std::endl;
+                for (int k = 0; k < keys_.size() / batch_size; k++) {
+                    // generate batch_size number of put queries
+                    for (int j = 0; j < batch_size; j++) {
+                        result = generate_TS_tracefile_put_query(keys_[k*batch_size + j], latest_timestamp);
+                        keys.push_back(result.first);
+                        data.push_back(result.second);
+                        std::cout << "PUT " << result.first << std::endl;
+                    }
                 }
+                // assume each data point spans one time unit, at most {object_size_} data points per bucket
+                latest_timestamp += object_size_;
+                i += keys_.size();
             }
             else
             {
-                for (int j = 0; j < batch_size; j++) {
-                    // generate batch_size number of get queries
-                    result = generate_TS_tracefile_get_query(timestamp_map);
-                    keys.push_back(result.first);
-                    data.push_back(result.second);
-                    std::cout << "GET " << result.first << std::endl;
+                for (int k = 0; k < keys_.size() / batch_size; k++) {
+                    for (int j = 0; j < batch_size; j++) {
+                        // generate batch_size number of get queries
+                        result = generate_TS_tracefile_get_query(keys_[k*batch_size+j], latest_timestamp-1);
+                        keys.push_back(result.first);
+                        data.push_back(result.second);
+                        std::cout << "GET " << result.first << std::endl;
+                    }
                 }
+                i += keys_.size();
             }
         }
 
