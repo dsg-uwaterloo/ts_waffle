@@ -188,6 +188,7 @@ public:
         auto sample_exponential = [&](std::mt19937 &gen, long latest_timestamp) {
             double sample = exp_dist(gen);
             double scaled_sample = (1.0 - std::exp(-5.0 * sample)) * (latest_timestamp + 1);
+            scaled_sample = 1700000000 + scaled_sample * (latest_timestamp - 1700000000) / (latest_timestamp + 1);
             return std::min(static_cast<long>(scaled_sample), latest_timestamp);
         };
         
@@ -208,9 +209,9 @@ public:
         std::cout << "batchsize" << batch_size << std::endl;
         std::vector<std::string> keys;
         std::vector<std::string> data;
-        long latest_timestamp = 0;
+        long latest_timestamp = 1700000000;
         int put_query_percentage = 50;
-        for (int i = 0; i < batch_count;) {
+        for (int i = 0; i < row_count;) {
             int rand_num = std::rand() % 100;
             std::pair<std::string, std::string> result;
             if (rand_num < put_query_percentage || i == 0)

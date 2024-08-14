@@ -166,7 +166,9 @@ void waffle_thrift_responseClient::send_async_response(const sequence_id& seq_id
   oprot_->writeMessageEnd();
   oprot_->getTransport()->writeEnd();
   oprot_->getTransport()->flush();
-  std::cout << "Sent response:" << result[0] << std::endl;
+  for (auto re: result) {
+    std::cout << "Sent response:" << re << std::endl;
+  }
 }
 
 bool waffle_thrift_responseProcessor::dispatchCall(::apache::thrift::protocol::TProtocol* iprot, ::apache::thrift::protocol::TProtocol* oprot, const std::string& fname, int32_t seqid, void* callContext) {

@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
         for (auto &item : items) {
             for (long i = 0; i < num_per_item; i++)
             {
-                std::string key=item + "@" + std::to_string(1700000000 + i);
+                std::string key=item + "@" + std::to_string(1700000000 - i - 1);
                 std::string value (dynamic_cast<waffle_proxy&>(*proxy_).object_size - key.length(), 'a');
                 keys.push_back(key);
                 values.push_back(key+value);

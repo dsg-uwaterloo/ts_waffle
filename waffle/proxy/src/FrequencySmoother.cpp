@@ -28,7 +28,7 @@ FrequencySmoother::FrequencySmoother(bool needTimeStamp) : accessTree(freqCmp){
     this->needTimeStamp=needTimeStamp;
 }
 
-std::pair<std::string, long> get_key_timestamp_split(std::string key) {
+std::pair<std::string, long> FrequencySmoother::get_key_timestamp_split(std::string key) {
     size_t at_pos = key.find('@');
     
     // Check if '@' was found and is not at the beginning or end
@@ -239,7 +239,7 @@ std::string FrequencySmoother::getOldestKey(std::vector<std::string> keys_to_be_
         //         }
         //     }
         // }
-        auto timestamps = uniqueItemWithTimeStamp[ get_key_timestamp_split(currentKey).first];
+        auto timestamps = uniqueItemWithTimeStamp[get_key_timestamp_split(currentKey).first];
         long oldestTimestamp = *timestamps.begin();
         return_key =  get_key_timestamp_split(currentKey).first + "@" + std::to_string(oldestTimestamp);
         return return_key;
@@ -248,5 +248,6 @@ std::string FrequencySmoother::getOldestKey(std::vector<std::string> keys_to_be_
 }
 
 std::set<long> FrequencySmoother::get_timestamp_for_key(std::string key) {
+    std::lock_guard<std::mutex> lock(itemTimeStampMutex);
     return uniqueItemWithTimeStamp[key];
 }

@@ -10,10 +10,10 @@
 #include "TS_key_master.h"
 
 int main() {
-    int no_items = 10;
+    int no_items = 3;
     int generation_interval = 50;
     int object_size = 100;
-    int client_batch_size = 5;
+    int client_batch_size = 2;
     int row_count = 500;  // generate {row_count} buckets of time series data
 
     std::vector<std::string> keys;

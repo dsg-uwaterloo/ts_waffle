@@ -694,7 +694,6 @@ std::vector<std::string> waffle_proxy::get_split_keys(std::string get_key) {
     // Split the string by '@'
     while (std::getline(ss, part, '@')) {
         parts.push_back(part);
-        std::cerr << part<< std::endl;
     }
     std::string key_name = parts[0];
     long start_timestamp = std::stol(parts[1]);
@@ -732,13 +731,13 @@ void waffle_proxy::consumer_thread(int id, encryption_engine *enc_engine){
     int previous_total_operations = 0;
     int total_operations = 0;
     std::cout << "Entering here to consumer thread" << std::endl;
+    int request_id = 0;
     while (!finished_) {
         std::vector <operation> storage_batch;
         std::unordered_map<std::string, std::vector<std::shared_ptr<std::promise<std::string>>>> keyToPromiseMap;
         //std::unordered_set<std::string> tempSet;
         int i=0;
         int cacheMisses = 0;
-        int request_id = 0;
         while (i < R && !finished_) {
             if(operation_queues_[id]->size() > 0) {
                 auto operation_promise_pair = operation_queues_[id]->pop();
@@ -747,10 +746,9 @@ void waffle_proxy::consumer_thread(int id, encryption_engine *enc_engine){
                 {
                     // it's a GET
                     // NEWFEATURES split user get query to multiple db get query
-                    // TODO for loop based on GET range
                     std::vector<std::string> db_keys = get_split_keys(currentKey);
                     for (int j = 0; j < db_keys.size(); j++) {
-                        // TODO the sub_operation should be constructed from operation pair, with the same request_id, but different operation.key
+                        // sub_operation should be constructed from operation pair, with the same request_id, but different operation.key
                         struct operation sub_operation;
                         sub_operation.key = db_keys[j];
                         sub_operation.value = "";
@@ -762,6 +760,7 @@ void waffle_proxy::consumer_thread(int id, encryption_engine *enc_engine){
                 }
                 else {
                     // it's a PUT
+                    std::string key = operation_promise_pair.first.key;
                     create_security_batch(operation_promise_pair, storage_batch, keyToPromiseMap, cacheMisses);
                     ++i;
                 }
