@@ -8,13 +8,14 @@
 #include <vector>
 #include "TS_value_master.h"
 #include "TS_key_master.h"
+#include "tsconfig.h"
 
 int main() {
-    int no_items = 3;
+    int no_items = benchmarkConfig::no_items;
     int generation_interval = 50;
-    int object_size = 100;
-    int client_batch_size = 2;
-    int row_count = 500;  // generate {row_count} buckets of time series data
+    int object_size = benchmarkConfig::object_size;
+    int client_batch_size = benchmarkConfig::client_batch_size;
+    int row_count = 100000;  // generate {row_count} buckets of time series data
 
     std::vector<std::string> keys;
     ItemIdGenerator::read_item_ids(keys, "../tracefiles/TS_ItemID_10000.txt", no_items);

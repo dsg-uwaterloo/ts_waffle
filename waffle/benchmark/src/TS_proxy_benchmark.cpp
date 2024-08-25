@@ -77,8 +77,7 @@ void load_trace(const std::string &trace_location, trace_vector &trace, int clie
     }
 }
 
-void run_benchmark(int run_time, bool stats, std::vector<int> &latencies, int client_batch_size,
-                   int object_size, TimeSeriesDataMap& timeSeriesDataMap, std::atomic<int> &xput, async_proxy_client client, int discrepancy_limit, trace_vector &trace) {
+void run_benchmark(int run_time, bool stats, std::vector<int> &latencies, std::atomic<int> &xput, async_proxy_client client, int discrepancy_limit, trace_vector &trace) {
     int ops = 0;
 
     ops = client.num_requests_satisfied();
@@ -129,36 +128,28 @@ void run_benchmark(int run_time, bool stats, std::vector<int> &latencies, int cl
     std::cout<<"Time taken for benchmark (original time setting: "<<run_time<<") is "<<elapsed<<std::endl;
 }
 
-void warmup(std::vector<int> &latencies, int client_batch_size,
-            int object_size, TimeSeriesDataMap &timeSeriesDataMap, std::atomic<int> &xput, async_proxy_client client, int discrepancy_limit, trace_vector &trace) {
-    run_benchmark(15, false, latencies, client_batch_size, object_size, timeSeriesDataMap, xput, client, discrepancy_limit, trace);
+void warmup(std::vector<int> &latencies, std::atomic<int> &xput, async_proxy_client client, int discrepancy_limit, trace_vector &trace) {
+    run_benchmark(15, false, latencies, xput, client, discrepancy_limit, trace);
 }
 
-void cooldown(std::vector<int> &latencies, int client_batch_size,
-              int object_size, TimeSeriesDataMap &timeSeriesDataMap, std::atomic<int> &xput, async_proxy_client client, int discrepancy_limit, trace_vector &trace) {
-    run_benchmark(15, false, latencies, client_batch_size, object_size, timeSeriesDataMap, xput, client, discrepancy_limit, trace);
+void cooldown(std::vector<int> &latencies, std::atomic<int> &xput, async_proxy_client client, int discrepancy_limit, trace_vector &trace) {
+    run_benchmark(15, false, latencies, xput, client, discrepancy_limit, trace);
 }
 
-void client(int idx, int client_batch_size, int object_size, std::string &output_directory, std::string &host, int proxy_port, trace_vector &trace, std::atomic<int> &xput, int no_items = 10, double generation_interval = 1, int discrepancy_limit = 5000)
+void client(int idx, std::string &output_directory, std::string &host, int proxy_port, trace_vector &trace, std::atomic<int> &xput, int discrepancy_limit = 5000)
 {
     async_proxy_client client;
     idx=1;
 
     client.init(host, proxy_port);
-    //generate keys
-    //auto keys=ItemIdGenerator::generate_item_ids(no_items);
-    std::vector<std::string> keys;
-    ItemIdGenerator::read_item_ids(keys, "tracefiles/TS_ItemID_10000.txt", no_items);
-    auto timeSeriesDataMap = TimeSeriesDataMap(keys, generation_interval, object_size,client_batch_size);
 
-    // std::cout << "Client initialized with batch size " << client_batch_size << std::endl;
     std::atomic<int> indiv_xput;
     std::atomic_init(&indiv_xput, 0);
     std::vector<int> latencies;
     // std::cout << "Beginning warmup" << std::endl;
-//    warmup(latencies, client_batch_size, object_size, timeSeriesDataMap, indiv_xput, client);
+//    warmup(latencies, indiv_xput, client, trace);
     // std::cout << "Beginning benchmark" << std::endl;
-    run_benchmark(30, true, latencies, client_batch_size, object_size, timeSeriesDataMap, indiv_xput, client,discrepancy_limit, trace);
+    run_benchmark(30, true, latencies, indiv_xput, client,discrepancy_limit, trace);
     std::string location = output_directory + "/" + std::to_string(idx);
     std::ofstream out(location);
     std::string line("");
@@ -176,7 +167,7 @@ void client(int idx, int client_batch_size, int object_size, std::string &output
 
     // std::cout << "xput is: " << xput << std::endl;
     // std::cout << "Beginning cooldown" << std::endl;
-//    cooldown(latencies, client_batch_size, object_size, timeSeriesDataMap, indiv_xput, client);
+//    cooldown(latencies, indiv_xput, client, trace);
 
     client.finish();
 }
@@ -184,10 +175,6 @@ void usage() {
     std::cout << "Proxy client\n";
     std::cout << "\t -h: Proxy host name\n";
     std::cout << "\t -p: Proxy port\n";
-    std::cout << "\t -t: Trace Location\n";
-    std::cout << "\t -n: Number of threads to spawn\n";
-    std::cout << "\t -s: Object Size\n";
-    std::cout << "\t -o: Output Directory\n";
 };
 
 int _mkdir(const char *path) {
@@ -207,10 +194,7 @@ int main(int argc, char *argv[]) {
     int proxy_port = 9090;
     std::string trace_location = benchmarkConfig::trace_location;
     int client_batch_size = benchmarkConfig::client_batch_size;
-    int object_size = benchmarkConfig::object_size;
     int num_clients = benchmarkConfig::num_clients;
-    int no_items=benchmarkConfig::no_items;
-    double generation_interval=0.00001;
     int discrepancy=5000;
     std::time_t end_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     auto date_string = std::string(std::ctime(&end_time));
@@ -220,34 +204,13 @@ int main(int argc, char *argv[]) {
 
     int o;
     std::string proxy_type_ = "pancake";
-    while ((o = getopt(argc, argv, "b:h:p:t:s:b:n:o:i:g:d:")) != -1) {
+    while ((o = getopt(argc, argv, "h:p:")) != -1) {
         switch (o) {
-            case 'b':
-                client_batch_size = std::atoi(optarg);
-                break;
             case 'h':
                 proxy_host = std::string(optarg);
                 break;
             case 'p':
                 proxy_port = std::atoi(optarg);
-                break;
-            case 's':
-                object_size = std::atoi(optarg);
-                break;
-            case 'n':
-                num_clients = std::atoi(optarg);
-                break;
-            case 'o':
-                output_directory = std::string(optarg);
-                break;
-            case'i':
-                no_items=std::atoi(optarg);
-                break;
-            case'g':
-                generation_interval=std::atof(optarg);
-                break;
-            case'd':
-                discrepancy=std::atoi(optarg);
                 break;
             default:
                 usage();
@@ -278,8 +241,7 @@ int main(int argc, char *argv[]) {
 
     std::vector<std::thread> threads;
     for (int i = 0; i < num_clients; i++) {
-        threads.push_back(std::thread(client, std::ref(i), std::ref(client_batch_size), std::ref(object_size),
-                                        std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(trace), std::ref(xput),no_items,generation_interval, discrepancy));
+        threads.push_back(std::thread(client, std::ref(i), std::ref(output_directory), std::ref(proxy_host), std::ref(proxy_port), std::ref(trace), std::ref(xput), discrepancy));
     }
     for (int i = 0; i < num_clients; i++)
         threads[i].join();

@@ -154,20 +154,26 @@ void waffle_thrift_responseClient::async_response(const sequence_id& seq_id, con
 
 void waffle_thrift_responseClient::send_async_response(const sequence_id& seq_id, const int32_t op_code, const std::vector<std::string> & result)
 {
-  int32_t cseqid = 0;
-  oprot_->writeMessageBegin("async_response", ::apache::thrift::protocol::T_ONEWAY, cseqid);
+  try {
+    int32_t cseqid = 0;
+    oprot_->writeMessageBegin("async_response", ::apache::thrift::protocol::T_ONEWAY, cseqid);
 
-  waffle_thrift_response_async_response_pargs args;
-  args.seq_id = &seq_id;
-  args.op_code = &op_code;
-  args.result = &result;
-  args.write(oprot_);
+    waffle_thrift_response_async_response_pargs args;
+    args.seq_id = &seq_id;
+    args.op_code = &op_code;
+    args.result = &result;
+    args.write(oprot_);
 
-  oprot_->writeMessageEnd();
-  oprot_->getTransport()->writeEnd();
-  oprot_->getTransport()->flush();
-  for (auto re: result) {
-    std::cout << "Sent response:" << re << std::endl;
+    oprot_->writeMessageEnd();
+    oprot_->getTransport()->writeEnd();
+    oprot_->getTransport()->flush();
+    for (auto re: result) {
+      std::cout << "Sent response:" << re << std::endl;
+    }
+  }
+  catch (const std::exception& e) {
+    std::cout << "Error: " << e.what() << std::endl;
+    exit(1);
   }
 }
 

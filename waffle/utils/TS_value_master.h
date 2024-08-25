@@ -131,7 +131,6 @@ public:
     int current_generating_item_index=0;
     int batch_size = 100;
     std::string generateDataForKey(const std::string& key){
-        // return default_value;
         std::string serializedData;
         std::string dataType = DataType::get_data_type(key);
 
@@ -155,10 +154,7 @@ public:
             : keys_(keys), generation_interval_(generation_interval), object_size_(object_size) {}
 
     TimeSeriesDataMap(const std::vector<std::string>& keys, int generation_interval, size_t object_size, int batch_size)
-            : keys_(keys), generation_interval_(generation_interval), object_size_(object_size), batch_size(batch_size) {
-        std::string return_dummy(object_size,'a');
-        default_value=return_dummy;
-    }
+            : keys_(keys), generation_interval_(generation_interval), object_size_(object_size), batch_size(batch_size) {}
 
     typedef std::vector<std::vector<std::string>> DataPair;
 
@@ -171,11 +167,11 @@ public:
 
     std::pair<std::string, std::string> generate_TS_tracefile_put_query(std::string key, int start_timestamp)
     {
-        std::tuple<std::string, long, std::string> result = generate_TS_data();
         std::string value = generateDataForKey(key);
         return {key + "@" + std::to_string(start_timestamp), value};
     }
 
+    // Get query from a range, more likely to get a range that is closer to the latest timestamp
     std::pair<std::string, std::string> generate_TS_tracefile_get_query(std::string key, long latest_timestamp)
     {
         std::random_device rd;
@@ -272,79 +268,7 @@ public:
         return data_pair;
     }
 
-    std::pair<std::vector<std::string>, std::vector<std::string>> generate_batch_TS_data(int batch_size)
-    {
-        std::vector<std::string> keys;
-        std::vector<std::string> data;
-        for (int i = 0; i < batch_size; i++) {
-            std::tuple<std::string, long, std::string> result = generate_TS_data();
-            std::string key = std::get<0>(result);
-            long timestamp = std::get<1>(result);
-            std::string value = std::get<2>(result);
-            // std::cout << "Generated data for key: " << key+"@"+std::to_string(timestamp) << " at timestamp: " << timestamp << std::endl;
-            keys.push_back(key+"@"+std::to_string(timestamp));
-            data.push_back(value);
-        }
-        return {keys, data};
-    }
-    std::pair<std::vector<std::string>, std::vector<std::string>> generate_batch_TS_data() {
-        return generate_batch_TS_data(batch_size);
-    }
-    std::tuple<std::string, long, std::string> generate_TS_data() {
-        while(true) {
-            long now = UNIX_TIMESTAMP::current_time();
-            for (auto const &last_generation_it: last_generation_time_) {
-                long last_generation_time = last_generation_it.second;
-                long duration_since_last_gen = now - last_generation_time;
-                std::string key = last_generation_it.first;
-                int size = DataType::get_data_type_size(key);
-                int time_increase =1;// object_size_ / size * generation_interval_;
-                if (duration_since_last_gen >= time_increase) {
-                    auto data = generateDataForKey(key);
-                    last_generation_time_[key] = last_generation_time + time_increase; // Update last generation time
-                    // std::cout << "Generated data for key: " << key << std::endl;
-                    return {key, last_generation_time + time_increase, data};
-                }
-            }
-            if (last_generation_time_.size()==keys_.size()){
-                continue;
-            }
-            if (rand()%30==0){
-                std::cout<<"Important Info - Used Key Size: "<<last_generation_time_.size()<<std::endl;
-            }
-            for (const auto &key: keys_) {
-                auto last_generation_it = last_generation_time_.find(key);
-
-                if (last_generation_it != last_generation_time_.end()) {
-                    continue;
-                } else {
-                    //print info
-                    std::string data = generateDataForKey(key);
-                    last_generation_time_[key] = now; // Update last generation time
-//                    std::cout<<"New Key: "<<key<<" at time "<<now<<std::endl;
-
-                    return {key, now, data};
-                }
-            }
-//            std::cout<<"No data needs to be generated at this time."<<std::endl;
-        }
-    }
-    std::tuple<std::string, long, std::string> generate_TS_data_fast() {
-        if(++current_generating_item_index>=keys_.size()){
-            current_time_stamp++;
-            std::cout<<"Current Time Stamp: "<<current_time_stamp<<std::endl;
-            current_generating_item_index %= keys_.size();
-
-        }
-        std::string key=keys_[current_generating_item_index];
-
-        auto data = generateDataForKey(key);
-        return {key, current_time_stamp, data};
-    }
-
 private:
-    std::string default_value;
-    long current_time_stamp=UNIX_TIMESTAMP::current_time();
     std::string generateDataForKey(const std::string& key) const {
         return generateDataForKey(key);
     }
