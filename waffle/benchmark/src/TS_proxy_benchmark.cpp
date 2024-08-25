@@ -112,7 +112,7 @@ void run_benchmark(int run_time, bool stats, std::vector<int> &latencies, std::a
         if (stats) {
             rdtscll(end);
             double cycles = static_cast<double>(end - start);
-            latencies.push_back((cycles / ticks_per_ns) / client_batch_size);
+            latencies.push_back((cycles / ticks_per_ns) / benchmarkConfig::client_batch_size);
         }
         e = std::chrono::high_resolution_clock::now();
         elapsed = static_cast<int>(std::chrono::duration_cast<std::chrono::microseconds>(e - s).count());
@@ -193,7 +193,6 @@ int main(int argc, char *argv[]) {
     std::string proxy_host = "192.168.252.109";
     int proxy_port = 9090;
     std::string trace_location = benchmarkConfig::trace_location;
-    int client_batch_size = benchmarkConfig::client_batch_size;
     int num_clients = benchmarkConfig::num_clients;
     int discrepancy=5000;
     std::time_t end_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -236,7 +235,7 @@ int main(int argc, char *argv[]) {
     std::atomic_init(&xput, 0);
 
     trace_vector trace;
-    load_trace(trace_location, trace, client_batch_size);
+    load_trace(trace_location, trace, benchmarkConfig::client_batch_size);
     // std::cout << "trace loaded" << std::endl;
 
     std::vector<std::thread> threads;
